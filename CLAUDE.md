@@ -12,7 +12,7 @@ additive, not a rewrite.
 - Test-first, red/green: write a failing test, make it pass, refactor. No feature
   without a test exercising a real playthrough — never placeholder/tautological tests.
 - No dollar figure, percentage, or savings/revenue number may appear anywhere in the
-  game or code that is not present in ./data/sources.json. If it's not in the data,
+  game or code that is not present in ./data/sources.enriched.json. If it's not in the data,
   it doesn't exist.
 - Never edit, move, or overwrite the PDFs in ./reports/. They are read-only source.
 - Any Python script uses uv (e.g. `uv run script.py`).

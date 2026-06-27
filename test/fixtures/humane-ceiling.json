@@ -1,0 +1,12 @@
+{
+  "_comment": "GOLDEN — humane-path ceiling on the near-term target (SPEC §11). Pinned 2026-06-27 from the first green engine run. The equity-maximizing deterministic path (per §11 tie-break) closes 61.98% of the $1.15B near-term gap and lands on 'Midnight Budget Standoff' (a near-miss, not collapse). This is HIGHER than §7d's provisional 35-45%/Crisis-Deepens guess because the menu's biggest recurring revenue (secure-CPS, LGDF, procurement, autonomous-taxi) is alt_caution/structural with base equity >= 0, so a humane mayor banks it at base. The tragedy still holds: the gap does NOT fully close. Re-pinning requires an explicit, reviewed change to SPEC §8 weights or §7c fork conventions.",
+  "target": "near_term",
+  "gap_progress": 712770000,
+  "gap_closed_pct": 0.6198,
+  "ending": "Midnight Budget Standoff",
+  "meters": {
+    "political_capital": -10,
+    "equity": -16,
+    "long_term_health": 4
+  }
+}

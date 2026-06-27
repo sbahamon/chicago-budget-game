@@ -1,0 +1,207 @@
+:root {
+  --ink: #16202c;
+  --muted: #5a6b7b;
+  --line: #d7dee5;
+  --accent: #b3242b; /* Chicago flag red */
+  --accent-2: #2a6db5; /* Chicago flag blue */
+  --bg: #f5f7f9;
+  --card: #ffffff;
+  --gold: #c8a44d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+#app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: -0.01em;
+}
+.site-header p {
+  margin: 4px 0 20px;
+  color: var(--muted);
+}
+
+/* Meters */
+.meters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+.meter__label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.meter__value {
+  font-weight: 600;
+}
+.meter--gap {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+.meter__bar {
+  margin-top: 6px;
+  height: 8px;
+  background: #eceff2;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.meter__fill {
+  height: 100%;
+  background: var(--accent-2);
+}
+.meters > .meter:not(.meter--gap) {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+/* Targets */
+.targets {
+  display: grid;
+  gap: 12px;
+}
+.target {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+}
+.target:hover {
+  border-color: var(--accent-2);
+}
+.target__name {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.target__blurb {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+/* Card */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+}
+.card__step {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+.card__title {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+}
+.card__meta p {
+  margin: 6px 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+.card__dissent {
+  border-left: 3px solid var(--gold);
+  padding-left: 10px;
+}
+.card__source {
+  margin: 14px 0 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+/* Choices */
+.choices {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+.choice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: #fbfcfd;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 1rem;
+  cursor: pointer;
+  text-align: left;
+}
+.choice:hover {
+  border-color: var(--accent);
+  background: #fff;
+}
+.choice__label {
+  font-weight: 600;
+}
+.choice__sub {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ledger */
+.ledger {
+  margin-top: 22px;
+}
+.ledger__title {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.ledger__list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Ending */
+.ending {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--gold);
+  border-radius: 12px;
+  padding: 22px;
+  margin-top: 4px;
+}
+.ending h2 {
+  margin: 0 0 8px;
+}
+.ending p {
+  color: var(--muted);
+}
+.ending .choice {
+  margin-top: 16px;
+  justify-content: center;
+}

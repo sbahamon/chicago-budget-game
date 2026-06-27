@@ -7,5 +7,13 @@ __pycache__/
 .venv/
 .python-version
 
+# Node / Vite / Vitest
+node_modules/
+dist/
+*.tsbuildinfo
+
 # Scratch / local
 *.log
+
+# Playwright MCP smoke-test artifacts
+.playwright-mcp/

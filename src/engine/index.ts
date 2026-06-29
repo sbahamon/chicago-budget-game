@@ -16,3 +16,6 @@ export { directionFor, getOption, structuralGap } from "./data";
 export { targetAmount, gapClosedPct, oneTimeShare } from "./endings";
 export type { Ending } from "./endings";
 export type { Variant } from "./realize";
+// Pure re-export only (no logic change): lets the view say whether a choice's
+// basis counts toward the selected target, without reimplementing engine logic.
+export { countsToward } from "./realize";

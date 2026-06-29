@@ -54,10 +54,10 @@ describe("lever fork variants follow dissent direction (SPEC §7c)", () => {
     ).toEqual(new Set(["opposing_max", "opposing_zero"]));
   });
 
-  test("a lever with no dissent offers base only", () => {
-    expect(leverVariants(directionFor("ey-procurement-category-management"))).toEqual([
-      "base",
-    ]);
+  test("a lever with no dissent offers adopt (base) or pass (defer)", () => {
+    expect(
+      new Set(leverVariants(directionFor("ey-procurement-category-management"))),
+    ).toEqual(new Set(["base", "defer"]));
   });
 });
 

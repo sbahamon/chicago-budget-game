@@ -158,7 +158,8 @@ export function leverVariants(direction: Direction | null): Variant[] {
     case "not_far_enough":
       return ["base", "push_harder"]; // defined for v2; dead code in v1 (SPEC §7c)
     case null:
-      return ["base"];
+      // No dissent, but still a real decision: adopt (base) or pass (defer = $0).
+      return ["base", "defer"];
   }
 }
 

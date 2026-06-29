@@ -262,11 +262,10 @@ export const SPLASH = {
 
   byline: "Built by Steffany Bahamon",
   bylineNote: "A data-grounded portfolio piece. The engine and every figure are open to inspection.",
-  // TODO(Steffany): replace the href placeholders with your real links.
   links: [
-    { label: "Website", href: "https://www.linkedin.com/in/steffanybahamon/" },
-    { label: "GitHub", href: "https://sbahamon.github.io/" },
-    { label: "LinkedIn", href: "https://github.com/" },
+    { label: "Website", href: "https://sbahamon.github.io/" },
+    { label: "GitHub", href: "https://github.com/sbahamon" },
+    { label: "LinkedIn", href: "https://www.linkedin.com/in/steffanybahamon/" },
   ],
 
   cta: "Take office →",

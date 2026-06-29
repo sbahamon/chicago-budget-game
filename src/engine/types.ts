@@ -113,6 +113,12 @@ export interface LeverOutcome {
   option_id: string;
   choice: string;
   dollar_impact: number;
+  /**
+   * Of `dollar_impact`, the dollars NOT counted toward the gap because the lever
+   * needs Springfield/Illinois action (E1). 0 for City-controlled levers and dials.
+   * gap_progress accrues `dollar_impact - at_risk_dollars`.
+   */
+  at_risk_dollars?: number;
   basis: Basis;
   counts_toward: Target[];
   affected_groups: string;

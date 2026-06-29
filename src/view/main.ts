@@ -20,7 +20,7 @@ import {
   renderLedger,
   formatUSD,
 } from "./render";
-import { shortfall, actFor } from "./narrative";
+import { shortfall, actFor, biteLine, splashFacts } from "./narrative";
 import {
   TITLE,
   SUBTITLE,
@@ -30,6 +30,7 @@ import {
   ENDING_DRAMA,
   SHORTFALL_LINE,
   INTRO,
+  SPLASH,
   METER_LABELS,
   METER_HELP,
   UI,
@@ -41,6 +42,8 @@ const DECISIONS = availableDecisions();
 let target: Target | null = null;
 let choices: (string | null)[] = [];
 let current = 0;
+// V2: the consequence "bite" for the choice just made; shown once, cleared on nav.
+let flash: string | null = null;
 
 function clear(): void {
   root.replaceChildren();
@@ -109,6 +112,84 @@ function button(label: string, className: string, onClick: () => void, disabled 
   return b;
 }
 
+/** The honesty landing: this is a game, here's what's real vs. modeled. Click-through. */
+function renderSplash(): void {
+  document.body.classList.remove("layout-play");
+  clear();
+  root.appendChild(header());
+  const f = splashFacts();
+
+  const make = (tag: string, cls: string, text?: string): HTMLElement => {
+    const n = document.createElement(tag);
+    n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  };
+
+  const section = document.createElement("section");
+  section.className = "splash";
+
+  section.appendChild(make("p", "splash__eyebrow", SPLASH.eyebrow));
+  section.appendChild(make("h2", "splash__title", SPLASH.title));
+  section.appendChild(make("p", "splash__lede", SPLASH.lede));
+
+  // Provenance, up top and legible: the two official reports everything is built from.
+  const src = make("div", "splash__sources");
+  src.appendChild(make("span", "splash__sources-label", SPLASH.sourcesLabel));
+  const srcList = make("ul", "splash__sources-list");
+  for (const s of SPLASH.sources) srcList.appendChild(make("li", "", s));
+  src.appendChild(srcList);
+  section.appendChild(src);
+
+  // By-the-numbers strip — every value injected from splashFacts (no literals).
+  const strip = make("div", "splash__stats");
+  for (const s of SPLASH.stats) {
+    const stat = make("div", "splash__stat");
+    stat.appendChild(make("span", "splash__stat-num", String(f[s.key])));
+    stat.appendChild(make("span", "splash__stat-label", s.label));
+    strip.appendChild(stat);
+  }
+  section.appendChild(strip);
+
+  // The real-vs-model blocks. `kind` colors the left rule (real = blue, model = red).
+  const blocks: Array<{ head: string; body: string; kind: "real" | "model" }> = [
+    { head: SPLASH.realHead, body: SPLASH.realBody(f), kind: "model" },
+    { head: SPLASH.compressHead, body: SPLASH.compressBody(f), kind: "model" },
+    { head: SPLASH.layeredHead, body: SPLASH.layeredBody(f), kind: "model" },
+    { head: SPLASH.faithfulHead, body: SPLASH.faithfulBody(f), kind: "real" },
+    { head: SPLASH.pointHead, body: SPLASH.pointBody, kind: "real" },
+  ];
+  const grid = make("div", "splash__blocks");
+  for (const b of blocks) {
+    const block = make("div", `splash__block splash__block--${b.kind}`);
+    block.appendChild(make("h3", "splash__block-head", b.head));
+    block.appendChild(make("p", "splash__block-body", b.body));
+    grid.appendChild(block);
+  }
+  section.appendChild(grid);
+
+  // CTA.
+  section.appendChild(button(SPLASH.cta, "choice splash__cta", renderTargetScreen));
+
+  // Byline + portfolio links.
+  const foot = make("div", "splash__byline");
+  foot.appendChild(make("p", "splash__byline-name", SPLASH.byline));
+  foot.appendChild(make("p", "splash__byline-note", SPLASH.bylineNote));
+  const links = make("p", "splash__links");
+  SPLASH.links.forEach((lk, i) => {
+    if (i > 0) links.appendChild(document.createTextNode(" · "));
+    const a = document.createElement("a");
+    a.className = "splash__link";
+    a.href = lk.href;
+    a.textContent = lk.label;
+    links.appendChild(a);
+  });
+  foot.appendChild(links);
+  section.appendChild(foot);
+
+  root.appendChild(section);
+}
+
 function renderTargetScreen(): void {
   document.body.classList.remove("layout-play");
   clear();
@@ -140,6 +221,7 @@ function startGame(t: Target): void {
   target = t;
   choices = new Array(DECISIONS.length).fill(null);
   current = 0;
+  flash = null;
   renderIntro();
 }
 
@@ -196,6 +278,15 @@ function renderPlay(): void {
 
   const mainCol = document.createElement("main");
   mainCol.className = "play__main";
+
+  // V2: the consequence bite from the choice just made lands here, before the card.
+  if (flash !== null) {
+    const f = document.createElement("div");
+    f.className = "flash";
+    f.textContent = flash;
+    mainCol.appendChild(f);
+  }
+
   const decision = DECISIONS[current]!;
   mainCol.appendChild(
     renderDecision(decision, current + 1, DECISIONS.length, target, choices[current] ?? null, onChoose),
@@ -221,12 +312,26 @@ function renderPlay(): void {
 function onChoose(choice: string): void {
   const wasUndecided = choices[current] === null;
   choices[current] = choice;
+  // V2: compute the consequence bite for THIS decision (applied to a fresh game so
+  // the bite reflects only this lever's outcome under the chosen target).
+  flash = biteFor(DECISIONS[current]!.id, choice);
   // Auto-advance only when first deciding; revising stays put so the change is seen.
   if (wasUndecided && current < DECISIONS.length - 1) current += 1;
   renderPlay();
 }
 
+/** First non-null consequence bite across a decision's emitted outcome(s) (V2). */
+function biteFor(decisionId: string, choice: string): string | null {
+  if (target === null) return null;
+  for (const o of applyChoice(createGame(target), decisionId, choice).outcomes) {
+    const b = biteLine(o, target);
+    if (b) return b;
+  }
+  return null;
+}
+
 function goTo(index: number): void {
+  flash = null; // a deliberate navigation clears the just-made-choice bite
   current = Math.max(0, Math.min(DECISIONS.length - 1, index));
   renderPlay();
 }
@@ -272,4 +377,4 @@ function renderEnding(): void {
   root.appendChild(renderLedger(game));
 }
 
-renderTargetScreen();
+renderSplash();

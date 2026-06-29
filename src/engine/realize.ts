@@ -2,7 +2,7 @@
 // The verified figure (verify.figure) is the source of both the dollar value and
 // the basis. Options with no figure realize 0 (e.g. structural pension plays).
 
-import { isDollarRange } from "./data";
+import { isDollarRange, stateStatus } from "./data";
 import type { Basis, DollarEstimate, Option, Target } from "./types";
 
 /**
@@ -73,6 +73,27 @@ export function realizeDollar(option: Option, variant: Variant): number {
       return basisNormalize(dollar_estimate * 1.25, basis);
     }
   }
+}
+
+// --- State friction (E1) -----------------------------------------------------
+// A State-dependent lever (data.stateStatus === "state") is not the City's to pull
+// alone — Springfield/Illinois action is required. Only a tunable share of its
+// realized yield is treated as confirmed/countable; the remainder is "at risk,
+// pending Springfield." STATE_CONFIRMED_SHARE is a game-design tuning constant in
+// the same category as the §8 meter weights and the §6 midpoint/÷10 rules — it
+// scales a real data figure, it does not assert any new budget figure.
+
+/** Share of a State-dependent lever's yield that counts toward the gap (E1, tunable). */
+export const STATE_CONFIRMED_SHARE = 0.7;
+
+/** Share of `option`'s yield that actually counts (1 for City-controlled levers). */
+export function stateConfirmedShare(option: Option): number {
+  return stateStatus(option.id) === "state" ? STATE_CONFIRMED_SHARE : 1;
+}
+
+/** Dollars of a realized yield that are at risk pending Springfield (0 for City levers). */
+export function atRiskDollar(option: Option, realizedDollar: number): number {
+  return realizedDollar * (1 - stateConfirmedShare(option));
 }
 
 /** Targets a basis contributes toward (SPEC §6 table). */

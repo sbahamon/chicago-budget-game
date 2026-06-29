@@ -14,6 +14,10 @@ import {
   choiceStatus,
   shortfall,
   actFor,
+  stateFriction,
+  meterWarnings,
+  biteLine,
+  splashFacts,
 } from "../../src/view/narrative";
 import {
   CHARACTERS,
@@ -22,6 +26,10 @@ import {
   ACTS,
   SHORTFALL_LINE,
   INTRO,
+  STATE_FRICTION,
+  WARNINGS,
+  BITE,
+  SPLASH,
 } from "../../src/view/copy";
 import {
   createGame,
@@ -289,6 +297,102 @@ describe("choiceStatus — categorize a decision for the map + split ledger", ()
   });
 });
 
+describe("stateFriction — surface who actually controls a lever (V1)", () => {
+  it("tags a State-dependent lever as needing Springfield", () => {
+    const f = stateFriction(getOption("cfftf-re-increase-lgdf-share-rate"));
+    expect(f).not.toBeNull();
+    expect(f!.status).toBe("state");
+    expect(f!.tag.length).toBeGreaterThan(0);
+    expect(f!.line).toBe(STATE_FRICTION.state);
+  });
+
+  it("tags a mixed-jurisdiction lever distinctly from a State-dependent one", () => {
+    const mixed = stateFriction(getOption("establish-autonomous-taxi-framework"));
+    expect(mixed!.status).toBe("mixed");
+    expect(mixed!.line).toBe(STATE_FRICTION.mixed);
+    expect(mixed!.tag).not.toBe(stateFriction(getOption("cfftf-re-increase-lgdf-share-rate"))!.tag);
+  });
+
+  it("returns null for a City-controlled lever", () => {
+    expect(stateFriction(getOption("reinstitute-head-tax"))).toBeNull();
+  });
+});
+
+describe("meterWarnings — make the cliffs visible before you fall off (V3)", () => {
+  it("warns when political capital is fracturing and danger when it is collapsing", () => {
+    const fracturing = meterWarnings({ political_capital: 35, equity: 0 });
+    expect(fracturing.some((w) => w.meter === "political_capital" && w.level === "warn")).toBe(true);
+
+    const collapsing = meterWarnings({ political_capital: 10, equity: 0 });
+    expect(collapsing.some((w) => w.meter === "political_capital" && w.level === "danger")).toBe(
+      true,
+    );
+  });
+
+  it("raises the austerity-equity danger once equity crosses the ending threshold", () => {
+    const w = meterWarnings({ political_capital: 100, equity: -45 });
+    expect(w.some((x) => x.meter === "equity" && x.level === "danger")).toBe(true);
+    expect(w.every((x) => WARNINGS[`${x.meter}_${x.level}` as keyof typeof WARNINGS] === x.text)).toBe(
+      true,
+    );
+  });
+
+  it("is silent while every meter is healthy", () => {
+    expect(meterWarnings({ political_capital: 100, equity: 0 })).toEqual([]);
+  });
+});
+
+describe("biteLine — consequences that bite right after the choice (V2)", () => {
+  it("calls out the silent non-event: a one-time plug that doesn't count under durable", () => {
+    const { outcomes } = applyChoice(createGame("durable"), "declare-maximum-tif-surplus", "base");
+    expect(biteLine(outcomes[0]!, "durable")).toBe(BITE.no_count);
+  });
+
+  it("bites that a State-dependent lever's money is at risk pending Springfield", () => {
+    const { outcomes } = applyChoice(
+      createGame("near_term"),
+      "cfftf-re-increase-lgdf-share-rate",
+      "base",
+    );
+    expect(biteLine(outcomes[0]!, "near_term")).toBe(BITE.state_at_risk);
+  });
+
+  it("bites the no-win when you take an opposing-both branch", () => {
+    const { outcomes } = applyChoice(
+      createGame("near_term"),
+      "institute-vacancy-freeze",
+      "opposing_max",
+    );
+    expect(biteLine(outcomes[0]!, "near_term")).toBe(BITE.opposing);
+  });
+
+  it("says nothing for a clean recurring city lever that counts in full", () => {
+    const { outcomes } = applyChoice(createGame("near_term"), "ey-procurement-category-management", "base");
+    expect(biteLine(outcomes[0]!, "near_term")).toBeNull();
+  });
+});
+
+describe("splashFacts — the honesty numbers, derived from the data (not hardcoded)", () => {
+  it("reports the real corpus + game-shape counts", () => {
+    const f = splashFacts();
+    expect(f.options).toBe(194); // the verified data of record
+    expect(f.reports).toBe(3); // CFFTF interim + final, EY
+    expect(f.decisions).toBe(18); // what the player actually faces
+    expect(f.levers).toBe(15);
+    expect(f.dials).toBe(3);
+    expect(f.levers + f.dials).toBe(f.decisions);
+    expect(f.targets).toBe(3); // near-term / durable / stretch
+    expect(f.endings).toBe(7);
+    expect(f.meters).toBe(4);
+  });
+
+  it("counts the real dissents and the State-dependent levers honestly", () => {
+    const f = splashFacts();
+    expect(f.dissents).toBe(45); // options carrying a dissent in the data of record
+    expect(f.stateLevers).toBe(4); // cps, lgdf, sales-base, drones
+  });
+});
+
 describe("no-invented-numbers guard — copy holds no hardcoded figures", () => {
   it("contains no $-amount, %-amount, or million/billion literal in any template", () => {
     const strings: string[] = [];
@@ -296,6 +400,11 @@ describe("no-invented-numbers guard — copy holds no hardcoded figures", () => 
     for (const dir of Object.values(CHOICE_LABELS))
       for (const v of Object.values(dir)) strings.push(v as string);
     for (const c of Object.values(CONSEQUENCE)) strings.push(c);
+    for (const s of Object.values(STATE_FRICTION)) strings.push(s);
+    for (const w of Object.values(WARNINGS)) strings.push(w);
+    for (const b of Object.values(BITE)) strings.push(b);
+    // SPLASH: prose (strings) only — its numbers are injected at render from splashFacts.
+    for (const v of Object.values(SPLASH)) if (typeof v === "string") strings.push(v);
     for (const a of ACTS) strings.push(a.title, a.blurb);
     // template fns: feed digit-free sentinels so any literal digit must be the template's own
     strings.push(SHORTFALL_LINE({ pct: "<PCT>", short: "<SHORT>" }));

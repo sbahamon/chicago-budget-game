@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { getOption } from "../../src/engine/data";
-import { realizeDollar } from "../../src/engine/realize";
+import { realizeDollar, atRiskDollar } from "../../src/engine/realize";
 import {
   availableDecisions,
   dialBand,
@@ -39,7 +39,10 @@ describe("aggressive path closes every target (SPEC §11)", () => {
     let expected = 0;
     for (const d of availableDecisions()) {
       if (d.kind === "lever") {
-        expected += realizeDollar(getOption(d.optionId), aggressiveChoice(d) as never);
+        const option = getOption(d.optionId);
+        const realized = realizeDollar(option, aggressiveChoice(d) as never);
+        // Only the confirmed (non-at-risk) share of a State-dependent lever counts (E1).
+        expected += realized - atRiskDollar(option, realized);
       } else {
         const band = dialBand(d.id, "high");
         expected += band.recurring + band.oneTime; // both count toward near_term

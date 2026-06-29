@@ -348,3 +348,41 @@ matches `data/sources.enriched.json` (the `verify.*` fields — `domain`, `lever
 `figure.basis`, `figure.annual_equivalent`, `figure.dollar_estimate`, `contested`,
 `overlap_groups`, `dissent_taxonomy`) and this finalized spec, so the engine contract and the
 project rules agree before the first test is written.
+
+---
+
+## 13. v1.1 — Urgency & State-friction addendum (post-build, 2026-06-29)
+Shipped on top of v1 §1–§12 (164/164 green, engine boundary §3 preserved). Diagnosis: the v1
+game lacked urgency — a monotonic-shrinking gap, no climax, consequences that only informed
+before a choice, invisible meter cliffs, and the biggest levers adoptable as if Springfield
+were a rubber stamp. The fix was three view items (V1–V3) plus one engine item (E1).
+
+**State classification (`data.stateStatus(id)` → `state | mixed | city`).** Curated id-sets
+(`STATE_DEPENDENT_IDS` = secure-CPS, LGDF, sales-tax-base, drones; `STATE_MIXED_IDS` = taxi,
+TIF-expiration, TIF-surplus, ADC), each cited to its `feasibility_note` phrase (e.g. LGDF
+"Feasibility Medium (state-dependent)"). Feeds both the view (V1) and the engine (E1). The
+three single largest recurring levers ($191.5M + $175.0M + $142.5M ≈ $509M of the $1.15B
+near-term gap) are all State-dependent per the data's own words.
+
+**E1 — State-dependent at-risk yield (engine; alters §6 counting + §8 meters).** A
+State-dependent lever banks its full data figure in `dollar_impact`, but only a tunable
+**`STATE_CONFIRMED_SHARE` (realize.ts, currently 0.7)** counts toward `gap_progress`; the
+remainder is `LeverOutcome.at_risk_dollars` ("pending Springfield"). §8 gains a tunable
+`state_dependent_extra` PC surcharge (meters.ts), applied when a State lever banks > 0. Both
+are §8-class tuning constants (CLAUDE.md carve-out), not new budget figures. **§7d closeability
+invariant still holds**: the aggressive path closes ≥100% on all three targets even at a full
+no-count, so the share is purely a friction/urgency knob (drop below ~0.65 and the humane
+golden flips to Crisis — see below).
+
+**V1/V2/V3 (view only; golden untouched).** V1: `stateFriction` renders a "⚠ Needs Springfield"
+callout + a ledger "at risk, pending Springfield $X" tally (X = Σ engine `at_risk_dollars`).
+V2: `biteLine(outcome, target)` shows a post-choice consequence flash — the `no_count` bite
+finally voices the durable one-time-plug silent non-event. V3: `meterWarnings` surfaces the §9
+cliffs, reading the now-exported `ENDING_THRESHOLDS` from endings.ts (no new numbers).
+
+**§11 golden — RE-PINNED.** The humane near-term ceiling moved **0.6198 → 0.5166** under E1
+(the humane path adopts CPS/LGDF at base + scales back sales — all State-dependent, so 30% is
+now at-risk; PC −10 → −22 from the surcharge). Ending category preserved: still **Midnight
+Budget Standoff** (near-miss, not collapse). Re-pin logged as an explicit reviewed act in
+`worklog.md` and `test/fixtures/humane-ceiling.json`. (Supersedes §7d/§11's pre-build
+"provisional ≈35–45%/Crisis" note, which was itself superseded by the 0.6198 build pin.)

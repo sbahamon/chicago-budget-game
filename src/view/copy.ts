@@ -157,6 +157,45 @@ export const CONSEQUENCE = {
   upfront_cost: "An upfront cost — you spend now to set up future savings.",
 } as const;
 
+// --- State friction (V1): who actually controls a lever ----------------------
+// Surfaces the data's own feasibility language — several of the biggest levers
+// need Springfield/Illinois action and aren't the City's to pull alone. The chips
+// label it; the line explains it. No figures (the at-risk dollars arrive via the
+// engine's at_risk_dollars and formatUSD at render time).
+export const STATE_CHIPS = {
+  state: "⚠ Needs Springfield",
+  mixed: "◑ Partly Springfield",
+} as const;
+
+export const STATE_FRICTION = {
+  state:
+    "Not yours to pull alone — this needs the Illinois General Assembly to act, so part of the money is at risk until Springfield moves.",
+  mixed:
+    "Shared jurisdiction — the City can act, but the State has a hand in how far this one goes.",
+} as const;
+
+// --- Meter cliff warnings (V3): make the thresholds visible ------------------
+// Keyed `${meter}_${level}`; surfaced when a meter crosses a §9 ending threshold.
+// These describe the existing ending branches; they introduce no new numbers.
+export const WARNINGS = {
+  political_capital_warn: "Your governing coalition is fracturing.",
+  political_capital_danger: "Your coalition is collapsing — you're becoming a lame duck.",
+  equity_danger: "You're balancing the budget on the backs of the most vulnerable.",
+} as const;
+
+// --- Post-choice consequence bite (V2): a beat that lands AFTER the choice ----
+// Selected from the engine's emitted LeverOutcome (basis/counts, at_risk, branch).
+// Paraphrases the data's framing; carries no figures.
+export const BITE = {
+  no_count:
+    "That plugs nothing toward a durable fix — under this target, the gap doesn't move at all.",
+  state_at_risk:
+    "Springfield hasn't signed off — part of this money is at risk and isn't counting yet.",
+  opposing: "You picked a side — one camp gets what it wanted, the other is furious.",
+  regressive: "The bill for this lands on those least able to pay it.",
+  structural: "A structural fix — this one keeps working long after you leave office.",
+} as const;
+
 // --- V3: dramatized gap + near-miss -----------------------------------------
 // Shown on the ending; numbers are passed in pre-formatted (formatUSD / percent).
 export const SHORTFALL_LINE = (ctx: { pct: string; short: string }): string =>
@@ -169,6 +208,69 @@ export const ENDING_DRAMA: Partial<Record<Ending, string>> = {
   "Crisis Deepens": "The shortfall swallows the room. There was no plan B.",
   "Kicked the Can": "It balances tonight. Next year's mayor inherits the same hole.",
 };
+
+// --- Splash / honesty screen (the landing) ----------------------------------
+// First-person, transparent: this is a GAME and a simplified model. The numbers
+// in the body lines are INJECTED at render from splashFacts() — the prose strings
+// stay digit-free so the no-invented-numbers guard keeps passing, and the counts
+// can never drift from the data. `import type { SplashFacts }` is the shape passed
+// to the template lines.
+import type { SplashFacts } from "./narrative";
+
+export const SPLASH = {
+  eyebrow: "A note before you start",
+  title: "This is a game.",
+  lede:
+    "It's a simplified model of a real problem — the structural gap in Chicago's city budget. It's a way to feel the hard trade-offs the city budget recommendations have, and to decide, choice by choice, which ones you'd actually make.",
+
+  realHead: "The money is real. The scoring is not.",
+  realBody: (f: SplashFacts): string =>
+    `Every dollar figure comes from ${f.reports} official reports on the city's finances and ${f.options} reform options I verified against them. But the ${f.meters} meters — and how much each choice costs you in political capital, equity, and long-term health — are a layer I added to make the trade-offs legible. Reasonable people would weight them differently.`,
+
+  compressHead: "What I compressed.",
+  compressBody: (f: SplashFacts): string =>
+    `Those ${f.options} options become ${f.decisions} decisions — the rest are grouped into broad dials or left out. Dollar ranges are taken at their midpoint; ten-year figures are annualized. You are one mayor, in one budget year, with no City Council, no courts, and no negotiation beyond the meters.`,
+
+  layeredHead: "What I layered on top.",
+  layeredBody: (f: SplashFacts): string =>
+    `Some of the biggest levers aren't the City's to pull alone — ${f.stateLevers} of them need Springfield. The reports say so; the game turns that into a risk, where those levers only partly count until the State acts. The size of that haircut, the meter weights, and the ${f.endings} possible endings are my game design, not findings from the reports.`,
+
+  faithfulHead: "What I kept faithful.",
+  faithfulBody: (f: SplashFacts): string =>
+    `When a task-force member objected to an option, you hear that objection — quoted and cited to a page. The ${f.dissents} dissents in the game are real arguments; only the voice delivering them is a fictional stand-in. No words are ever put in a real person's mouth.`,
+
+  pointHead: "The point.",
+  pointBody:
+    "There is no perfect budget in here. Every path that closes the gap changes something of the Chicago we know today. You decide what's worth it.",
+
+  numbersLabel: "By the numbers",
+  // Stat strip; each value is filled from splashFacts at render (no literals here).
+  stats: [
+    { key: "reports", label: "source reports" },
+    { key: "options", label: "verified options" },
+    { key: "dissents", label: "real dissents" },
+    { key: "decisions", label: "decisions you make" },
+    { key: "meters", label: "meters (1 is real $)" },
+    { key: "endings", label: "possible endings" },
+  ] as const,
+
+  sourcesLabel: "Built from",
+  sources: [
+    "Chicago's Fiscal Futures Task Force — Interim & Final Reports",
+    "EY — Financial & Strategic Reform Options",
+  ],
+
+  byline: "Built by Steffany Bahamon",
+  bylineNote: "A data-grounded portfolio piece. The engine and every figure are open to inspection.",
+  // TODO(Steffany): replace the href placeholders with your real links.
+  links: [
+    { label: "Website", href: "https://www.linkedin.com/in/steffanybahamon/" },
+    { label: "GitHub", href: "https://sbahamon.github.io/" },
+    { label: "LinkedIn", href: "https://github.com/" },
+  ],
+
+  cta: "Take office →",
+} as const;
 
 // --- V4: arc / acts ----------------------------------------------------------
 // Opening stakes screen. The gap figure is passed in pre-formatted from the
@@ -224,4 +326,5 @@ export const UI = {
   reviseChoices: "← Revise choices",
   playAgain: "Play again",
   source: "Source",
+  pendingSpringfield: "At risk, pending Springfield",
 } as const;

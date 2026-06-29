@@ -2,8 +2,8 @@
 // persona-agnostic. v1 mayor mode and v2 Chicagoan mode share this exact engine;
 // only the view differs.
 
-import { getOption } from "./data";
-import { realizeDollar, countsToward } from "./realize";
+import { getOption, stateStatus } from "./data";
+import { realizeDollar, countsToward, atRiskDollar } from "./realize";
 import {
   availableDecisions,
   getDecision,
@@ -59,18 +59,22 @@ function buildLeverOutcome(
 ): LeverOutcome {
   const basis = leverBasis(option);
   const dollar = realizeDollar(option, variant);
+  const stateDependent = stateStatus(option.id) === "state";
+  const atRisk = atRiskDollar(option, dollar); // 0 for City-controlled levers
   const meter = meterLeverDeltas({
     direction: getDecisionDirection(decisionId),
     leverType: option.lever_type,
     variant,
     basis,
     realizedDollar: dollar,
+    stateDependent,
   });
   return {
     decision_id: decisionId,
     option_id: option.id,
     choice: variant,
     dollar_impact: dollar,
+    at_risk_dollars: atRisk,
     basis,
     counts_toward: countsToward(basis),
     affected_groups: option.who_is_affected,
@@ -159,8 +163,11 @@ export function applyChoice(
   const meters: Meters = { ...state.meters };
   for (const o of outcomes) {
     if (o.counts_toward.includes(state.target)) {
-      meters.gap_progress += o.dollar_impact;
-      o.meter_deltas.gap_progress = o.dollar_impact;
+      // Only confirmed dollars accrue; a State-dependent lever's at-risk share is
+      // pending Springfield and does not count toward the gap (E1).
+      const counted = o.dollar_impact - (o.at_risk_dollars ?? 0);
+      meters.gap_progress += counted;
+      o.meter_deltas.gap_progress = counted;
     }
     meters.political_capital += o.meter_deltas.political_capital;
     meters.equity += o.meter_deltas.equity;

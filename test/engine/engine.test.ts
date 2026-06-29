@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { getOption } from "../../src/engine/data";
-import { realizeDollar, countsToward } from "../../src/engine/realize";
+import { getOption, stateStatus } from "../../src/engine/data";
+import { realizeDollar, countsToward, atRiskDollar } from "../../src/engine/realize";
 import {
   availableDecisions,
   leverVariants,
@@ -42,12 +42,16 @@ describe("applyChoice — per-lever × per-variant matrix matches data by id (SP
         const option = getOption(lever.optionId);
         const basis = leverBasis(lever.optionId);
         const expectedDollar = realizeDollar(option, variant);
+        const stateDependent = stateStatus(lever.optionId) === "state";
+        const expectedAtRisk = atRiskDollar(option, expectedDollar); // 0 for City levers
+        const expectedConfirmed = expectedDollar - expectedAtRisk;
         const expectedMeter = meterLeverDeltas({
           direction: lever.direction,
           leverType: option.lever_type,
           variant,
           basis,
           realizedDollar: expectedDollar,
+          stateDependent,
         });
 
         const { state, outcomes } = applyChoice(
@@ -58,7 +62,8 @@ describe("applyChoice — per-lever × per-variant matrix matches data by id (SP
         expect(outcomes).toHaveLength(1);
         const o = outcomes[0]!;
 
-        expect(o.dollar_impact).toBeCloseTo(expectedDollar, EPS);
+        expect(o.dollar_impact).toBeCloseTo(expectedDollar, EPS); // full data figure
+        expect(o.at_risk_dollars ?? 0).toBeCloseTo(expectedAtRisk, EPS);
         expect(o.basis).toBe(basis);
         expect(o.counts_toward).toEqual(countsToward(basis));
         expect(o.meter_deltas.political_capital).toBe(expectedMeter.political_capital);
@@ -66,12 +71,13 @@ describe("applyChoice — per-lever × per-variant matrix matches data by id (SP
         expect(o.meter_deltas.long_term_health).toBe(expectedMeter.long_term_health);
         expect(o.provenance.option_id).toBe(lever.optionId);
 
-        // state advanced: banked appended, meters moved by the deltas
+        // state advanced: banked appended, meters moved by the deltas. Only the
+        // confirmed (non-at-risk) dollars accrue to the gap (E1).
         expect(state.banked).toHaveLength(1);
         expect(state.meters.political_capital).toBe(100 + expectedMeter.political_capital);
         const towardNearTerm = countsToward(basis).includes("near_term");
         expect(state.meters.gap_progress).toBeCloseTo(
-          towardNearTerm ? expectedDollar : 0,
+          towardNearTerm ? expectedConfirmed : 0,
           EPS,
         );
       });

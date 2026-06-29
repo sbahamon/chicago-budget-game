@@ -50,3 +50,34 @@
 - VERIFY: `npm run build` clean (tsc strict + vite, static dist/). Money-literal grep of src/ shows only fiscal-year labels, comments, and formatUSD display-unit thresholds — no hardcoded budget figures. Browser smoke test (Playwright) played a full 18-decision near-term game to an ending screen; only console error is favicon 404.
 - GREEN: full suite 115/115; all SPEC §11 tests pass on real playthroughs.
 - STATUS: v1 mayor mode complete and playable. NEXT (future): playtest-tune §8 weights; consider whether humane ceiling should read as Crisis vs near-miss (currently Midnight Budget Standoff, pinned).
+
+## 2026-06-29 — PROGRESS: urgency & State-friction design pass (V1+V2+V3 view + E1 engine)
+Design diagnosis (5 Playwright playthroughs) found the urgency drains: monotonic-shrinking gap, no clock, 18 equally-weighted cards, no escape hatch, consequences that only INFORM before a choice (the one-time no-count was a silent non-event), invisible meter cliffs, and the biggest levers adoptable as if Springfield were a rubber stamp. User chose bundle V1+V2+V3 (view) + E1 (engine), golden re-pin authorized. Test-first throughout (red→green); plan at ~/.claude/plans/this-is-the-chicago-glistening-karp.md.
+- FOUNDATION: data.ts `stateStatus(id)` + curated STATE_DEPENDENT_IDS (cps/lgdf/sales/drones) / STATE_MIXED_IDS, each cited to its feasibility_note phrase. RED→GREEN in data.test.ts.
+- V1 (view, golden untouched): copy STATE_CHIPS/STATE_FRICTION; narrative `stateFriction(option)`; render a "⚠ Needs Springfield" callout on State levers + a ledger "At risk, pending Springfield $X" tally (X = sum of engine at_risk_dollars).
+- V3 (view, golden untouched): endings.ts exports ENDING_THRESHOLDS (the §9 branch numbers — no new figures); narrative `meterWarnings(meters)`; render colors PC/equity meters + a one-line cliff banner when crossed.
+- V2 (view, golden untouched): copy BITE; narrative `biteLine(outcome,target)` (no_count → state_at_risk → opposing → regressive → structural); main.ts shows the bite as a flash on the next card, cleared on navigation. The no_count bite finally makes the durable one-time-plug "silent non-event" speak.
+- E1 (ENGINE; **golden RE-PINNED**): realize.ts `STATE_CONFIRMED_SHARE=0.7` + `atRiskDollar` (§8-class tunable, scales a real data figure — no new budget number); LeverOutcome gains `at_risk_dollars`; meters.ts `state_dependent_extra=d(-4,0,0)` stacks when a State lever banks >0; engine.ts counts only confirmed dollars toward the gap. State levers' 30% at-risk share is "pending Springfield" and doesn't count.
+- GOLDEN RE-PIN (explicit reviewed act, SPEC §11): humane near-term ceiling 0.6198→**0.5166**, ending **still Midnight Budget Standoff** (near-miss category preserved), PC −10→−22 (the −4×3 Springfield surcharge on adopted CPS/LGDF/sales). Fixture + rationale in test/fixtures/humane-ceiling.json. Cause: the humane path adopts CPS/LGDF at base + scales back sales — all State-dependent, so 30% now at-risk. Aggressive STILL closes ≥100% on all three targets (§7d invariant holds; near-term over-close $1.76B→$1.61B).
+- VERIFY: full suite **164/164** green (was 145; +19 new); `tsc --noEmit` clean; `npm run build` clean; money-literal grep of src/ clean (only FY labels, formatUSD thresholds, the §8-class tunables). Live Playwright replay confirmed: Springfield tag + $52.5M at-risk on CPS adopt (gap counts $122.5M not $175M); state-at-risk + no_count bites fire (durable TIF surplus → "the gap doesn't move at all", still-to-close frozen $680M); PC/equity danger warnings + red meters on the aggressive crash.
+- DOCS: synced after the pass — CLAUDE.md (no-invented-numbers rule now carves out §8-class
+  tuning constants like STATE_CONFIRMED_SHARE/meter weights), SPEC.md (new §13 v1.1 addendum),
+  new README.md (front door + run/test + file map).
+
+## 2026-06-29 — PROGRESS: honesty splash screen (portfolio framing)
+For the public portfolio build, added a dedicated click-through landing that makes the model's
+limits unmistakable BEFORE play. View-only; engine + golden untouched (166/166 green).
+- `narrative.splashFacts()` (pure, node-tested) derives the honest counts from the data/engine
+  so they can't drift or read as invented: reports 3, options 194, dissents 45, decisions 18
+  (15 levers + 3 dials), meters 4, targets 3, endings 7, stateLevers 4.
+- `copy.SPLASH` — first-person, credited (Steffany Bahamon + Website/GitHub/LinkedIn href="#"
+  TODO placeholders). Prose strings stay digit-free (numbers injected at render via splashFacts,
+  same pattern as INTRO(gap)); no-invented-numbers guard extended to scan SPLASH.
+- `main.renderSplash()` is the new landing (entry call `renderSplash()`); CTA "Take office →" →
+  difficulty select; "Play again" still returns to difficulty (splash shows on fresh load only).
+  Five real-vs-model blocks (red left-rule = my modeling: money/scoring, compressed, layered;
+  blue = faithful: dissents, the point) + a by-the-numbers stat strip + a Sources line.
+- VERIFY: tsc + build clean; suite 166/166; live Playwright confirmed the strip shows
+  3/194/45/18/4/7, body lines inject ("4 of them need Springfield … 7 possible endings"), and
+  the CTA advances to difficulty select. NEXT (user): fill the three link href placeholders in
+  copy.ts SPLASH.links.

@@ -14,6 +14,18 @@ export type Ending =
   | "The Structural Reformer"
   | "The Pragmatist";
 
+/**
+ * The §9 ending-branch thresholds, named so the view can surface the cliffs
+ * (SPEC §9 / V3) without re-deriving numbers. These ARE the ending constants —
+ * no new figures are introduced.
+ */
+export const ENDING_THRESHOLDS = {
+  austerity_equity: -40, // equity ≤ this → The Austerity Mayor
+  lame_duck_pc: 20, // political_capital ≤ this → The Lame-Duck Reformer
+  reformer_pc: 40, // political_capital floor for The Structural Reformer
+  reformer_health: 30, // long_term_health floor for The Structural Reformer
+} as const;
+
 /** Difficulty-target dollar amount, read from structural_gap[] (SPEC §2). */
 export function targetAmount(target: Target): number {
   const gaps = structuralGap();
@@ -77,14 +89,15 @@ export function evaluateEnding(state: GameState): Ending {
   const oneTime = oneTimeShare(state);
   const { equity, political_capital, long_term_health } = state.meters;
 
+  const T = ENDING_THRESHOLDS;
   if (oneTime >= 0.4) return "Kicked the Can";
-  if (equity <= -40) return "The Austerity Mayor";
-  if (political_capital <= 20) return "The Lame-Duck Reformer";
+  if (equity <= T.austerity_equity) return "The Austerity Mayor";
+  if (political_capital <= T.lame_duck_pc) return "The Lame-Duck Reformer";
   if (
     oneTime <= 0.2 &&
     equity >= 0 &&
-    political_capital >= 40 &&
-    long_term_health >= 30
+    political_capital >= T.reformer_pc &&
+    long_term_health >= T.reformer_health
   ) {
     return "The Structural Reformer";
   }

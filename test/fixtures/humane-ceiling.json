@@ -1,11 +1,11 @@
 {
-  "_comment": "GOLDEN — humane-path ceiling on the near-term target (SPEC §11). Pinned 2026-06-27 from the first green engine run. The equity-maximizing deterministic path (per §11 tie-break) closes 61.98% of the $1.15B near-term gap and lands on 'Midnight Budget Standoff' (a near-miss, not collapse). This is HIGHER than §7d's provisional 35-45%/Crisis-Deepens guess because the menu's biggest recurring revenue (secure-CPS, LGDF, procurement, autonomous-taxi) is alt_caution/structural with base equity >= 0, so a humane mayor banks it at base. The tragedy still holds: the gap does NOT fully close. Re-pinning requires an explicit, reviewed change to SPEC §8 weights or §7c fork conventions.",
+  "_comment": "GOLDEN — humane-path ceiling on the near-term target (SPEC §11). RE-PINNED 2026-06-29 as an explicit, reviewed act after engine item E1 (State-dependent at-risk yield). The equity-maximizing deterministic path (per §11 tie-break) now closes 51.66% of the $1.15B near-term gap and still lands on 'Midnight Budget Standoff' (a near-miss, not collapse). PRIOR PIN (2026-06-27): 61.98% / Midnight Budget Standoff. The drop is the intended consequence of E1: the humane path adopts secure-CPS and LGDF at base and scales back the sales-tax-base expansion — all three are State-dependent, so 30% of their yield (1 - STATE_CONFIRMED_SHARE=0.7) is now at risk pending Springfield and does not count, and each carries the state_dependent_extra political-capital surcharge (political_capital -10 -> -22). The ending CATEGORY is preserved (the tragedy still reads as a near-miss, not a collapse). Re-pinning requires an explicit, reviewed change to SPEC §8 weights, §7c fork conventions, or the E1 State-friction constants.",
   "target": "near_term",
-  "gap_progress": 712770000,
-  "gap_closed_pct": 0.6198,
+  "gap_progress": 594120000,
+  "gap_closed_pct": 0.5166,
   "ending": "Midnight Budget Standoff",
   "meters": {
-    "political_capital": -10,
+    "political_capital": -22,
     "equity": -16,
     "long_term_health": 4
   }

@@ -24,6 +24,7 @@ function leverInput(
   id: string,
   direction: Parameters<typeof meterLeverDeltas>[0]["direction"],
   variant: Variant,
+  stateDependent = false,
 ) {
   const o = getOption(id);
   return {
@@ -32,6 +33,7 @@ function leverInput(
     variant,
     basis: basisOf(id),
     realizedDollar: realizeDollar(o, variant),
+    stateDependent,
   };
 }
 
@@ -104,6 +106,31 @@ describe("meterLeverDeltas — §8 row selection", () => {
     expect(
       meterLeverDeltas(leverInput("ey-procurement-category-management", null, "base")),
     ).toEqual(W.base_lever);
+  });
+
+  test("State-dependent lever banking $ → row + state surcharge (E1)", () => {
+    // lgdf is alternative_or_caution AND state-dependent: alt/caution row + the
+    // extra political-capital cost of needing Springfield.
+    expect(
+      meterLeverDeltas(
+        leverInput("cfftf-re-increase-lgdf-share-rate", "alternative_or_caution", "base", true),
+      ),
+    ).toEqual(add(W.alt_caution_base, W.state_dependent_extra));
+  });
+
+  test("State-dependent lever banking $0 (deferred) → no surcharge (E1)", () => {
+    // Deferring the lever doesn't spend capital in Springfield, so no surcharge.
+    expect(
+      meterLeverDeltas(
+        leverInput("cfftf-re-increase-lgdf-share-rate", "alternative_or_caution", "defer", true),
+      ),
+    ).toEqual(W.study_and_delay);
+  });
+
+  test("a City-controlled lever never takes the state surcharge (E1)", () => {
+    expect(
+      meterLeverDeltas(leverInput("reinstitute-head-tax", "too_far", "base", false)),
+    ).toEqual(W.too_far_base);
   });
 });
 

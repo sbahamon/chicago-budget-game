@@ -12,8 +12,9 @@ export {
 } from "./engine";
 export type { Decision, LeverDecision, DialDecision, DialLevel } from "./decisions";
 export { leverVariants, dialBand, dialMembers, DIAL_IDS } from "./decisions";
-export { directionFor, getOption, structuralGap } from "./data";
-export { targetAmount, gapClosedPct, oneTimeShare } from "./endings";
+export { directionFor, getOption, structuralGap, stateStatus, allOptions } from "./data";
+export type { StateStatus } from "./data";
+export { targetAmount, gapClosedPct, oneTimeShare, ENDING_THRESHOLDS } from "./endings";
 export type { Ending } from "./endings";
 export type { Variant } from "./realize";
 // Pure re-export only (no logic change): lets the view say whether a choice's

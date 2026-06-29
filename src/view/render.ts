@@ -34,6 +34,8 @@ import {
   choiceStatus,
   shortfall,
   actFor,
+  stateFriction,
+  meterWarnings,
   type Badge,
   type ChoiceStatus,
 } from "./narrative";
@@ -95,13 +97,28 @@ export function renderMeters(state: GameState): HTMLElement {
   gap.appendChild(bar);
   wrap.appendChild(gap);
 
+  // V3: which meters have crossed a §9 ending cliff, so we can color + warn them.
+  const warnings = meterWarnings(state.meters);
+  const warnLevel = (key: string): "warn" | "danger" | null =>
+    warnings.find((w) => w.meter === key)?.level ?? null;
+
   for (const key of ["political_capital", "equity", "long_term_health"] as const) {
-    const m = el("div", "meter");
+    const lvl = warnLevel(key);
+    const m = el("div", lvl ? `meter meter--${lvl}` : "meter");
     const label = el("div", "meter__label", METER_LABELS[key]);
     label.title = METER_HELP[key]; // hover help; full text is on the intro screen
     m.appendChild(label);
     m.appendChild(el("div", "meter__value", String((state.meters as Meters)[key])));
     wrap.appendChild(m);
+  }
+
+  // V3: a one-line cliff warning banner under the HUD (only when a meter is in danger/warn).
+  if (warnings.length > 0) {
+    const banner = el("div", "meters__warn");
+    for (const w of warnings) {
+      banner.appendChild(el("span", `meters__warn-item meters__warn-item--${w.level}`, `⚠ ${w.text}`));
+    }
+    wrap.appendChild(banner);
   }
   return wrap;
 }
@@ -205,6 +222,17 @@ function renderLever(
 
   const br = badgeRow(badges);
   if (br) card.appendChild(br);
+
+  // V1: surface who actually controls this lever — several biggest levers need
+  // Springfield to act, so they aren't the City's to pull alone.
+  const friction = stateFriction(option);
+  if (friction) {
+    const block = el("div", `statedep statedep--${friction.status}`);
+    block.appendChild(el("span", "statedep__tag", friction.tag));
+    block.appendChild(el("span", "statedep__line", friction.line));
+    card.appendChild(block);
+  }
+
   card.appendChild(consequenceCallout(option, target)); // V2 durability cue
 
   const meta = el("div", "card__meta");
@@ -338,5 +366,16 @@ export function renderLedger(state: GameState): HTMLElement {
   section(UI.adoptedHead, all.filter((r) => r.status === "adopted"), true);
   section(UI.scaledHead, all.filter((r) => r.status === "scaled"), true);
   section(UI.passedHead, all.filter((r) => r.status === "passed"), false);
+
+  // V1: how much of the plan rides on Springfield (engine-provided at_risk dollars).
+  const atRisk = state.banked.reduce((t, o) => t + (o.at_risk_dollars ?? 0), 0);
+  if (atRisk > 0) {
+    const note = el("p", "ledger__springfield");
+    note.append(
+      el("span", "ledger__springfield-label", UI.pendingSpringfield),
+      el("span", "ledger__springfield-amt", formatUSD(atRisk)),
+    );
+    wrap.appendChild(note);
+  }
   return wrap;
 }

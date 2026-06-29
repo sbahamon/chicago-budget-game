@@ -26,6 +26,9 @@ export const METER_WEIGHTS = {
   one_time_plug: d(-2, 0, -10),
   structural: d(-8, 4, 12),
   study_and_delay: d(-1, 0, -5),
+  // E1: extra political-capital cost of a lever that needs Springfield to act
+  // (you must spend capital in the General Assembly). Tunable, §8-class constant.
+  state_dependent_extra: d(-4, 0, 0),
 } as const;
 
 function add(...rows: MeterDelta[]): MeterDelta {
@@ -48,15 +51,18 @@ export interface LeverMeterInput {
   variant: Variant;
   basis: Basis;
   realizedDollar: number;
+  /** True when this lever needs Springfield/Illinois action (E1). */
+  stateDependent?: boolean;
 }
 
 /**
  * Meter movement for a banked lever choice (SPEC §8). Selects one primary row by
  * (variant, direction, leverType), then stacks the one-time-plug row when the
- * choice banks one-time / asset-monetization dollars.
+ * choice banks one-time / asset-monetization dollars, and the state-dependent
+ * surcharge (E1) when a State-reliant lever actually banks a positive ask.
  */
 export function meterLeverDeltas(input: LeverMeterInput): MeterDelta {
-  const { direction, leverType, variant, basis, realizedDollar } = input;
+  const { direction, leverType, variant, basis, realizedDollar, stateDependent } = input;
   const W = METER_WEIGHTS;
 
   let row: MeterDelta;
@@ -71,9 +77,10 @@ export function meterLeverDeltas(input: LeverMeterInput): MeterDelta {
   else if (direction === "alternative_or_caution") row = W.alt_caution_base;
   else row = W.base_lever;
 
-  return banksOneTimePlug(basis, realizedDollar)
-    ? add(row, W.one_time_plug)
-    : row;
+  if (banksOneTimePlug(basis, realizedDollar)) row = add(row, W.one_time_plug);
+  // The Springfield surcharge applies only when you actually pursue the ask ($ > 0).
+  if (stateDependent === true && realizedDollar > 0) row = add(row, W.state_dependent_extra);
+  return row;
 }
 
 export interface DialMeterInput {

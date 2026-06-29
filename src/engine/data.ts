@@ -66,6 +66,37 @@ export function structuralGap(): readonly StructuralGap[] {
   return data.structural_gap;
 }
 
+// --- State-vs-City control, grounded in each option's feasibility_note -------
+// Several of the biggest levers are not the City's to pull alone; the report
+// language says so explicitly. Curated id-sets (mirroring the dial dedup sets in
+// decisions.ts) keep this robust; the justification is the cited feasibility phrase.
+
+/** "State control" is a game-facing classification of who can actually pull a lever. */
+export type StateStatus = "state" | "mixed" | "city";
+
+// Explicitly requires State of Illinois / General Assembly / Illinois-law action.
+const STATE_DEPENDENT_IDS: ReadonlySet<string> = new Set([
+  "cfftf-ltl-secure-cps-pension-contributions", // "Feasibility Low-Medium (requires agreement with CPS/State)"
+  "cfftf-re-increase-lgdf-share-rate", // "Feasibility Medium (state-dependent)"
+  "cfftf-re-expand-sales-tax-base-consumer-services", // "Feasibility Medium (state legislation required)"
+  "increase-autonomous-drones-cpd", // "Illinois law prohibits general public surveillance"
+]);
+
+// Partial / shared jurisdiction — the data references the State but the City acts too.
+const STATE_MIXED_IDS: ReadonlySet<string> = new Set([
+  "establish-autonomous-taxi-framework", // "Jurisdiction: City/State"
+  "favor-natural-expiration-of-tifs", // City already needs General Assembly approval for extensions
+  "declare-maximum-tif-surplus", // "based on FY2025-size surplus and state-law distribution"
+  "cfftf-ltl-advanced-supplemental-payment", // dissent: amend the Illinois Constitution
+]);
+
+/** Who controls a lever, per its feasibility_note language (SPEC §3 / State-friction). */
+export function stateStatus(id: string): StateStatus {
+  if (STATE_DEPENDENT_IDS.has(id)) return "state";
+  if (STATE_MIXED_IDS.has(id)) return "mixed";
+  return "city";
+}
+
 // --- Dissent direction, derived from verify.dissent_taxonomy (SPEC §4) -------
 // Each taxonomy entry lists its member option ids inside the `definition` text
 // ("... Members: id-a, id-b, ..."). We extract id-shaped tokens and keep only

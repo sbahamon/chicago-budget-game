@@ -8,12 +8,21 @@ Daniel Kay Hertz's affordable housing game. v1 is MAYOR MODE ONLY. A persona-bas
 "Chicagoan mode" is planned for v2 — keep the engine persona-agnostic so v2 is
 additive, not a rewrite.
 
+v1.1 added an urgency & State-friction pass (engine boundary preserved): State-dependent
+levers count only part of their yield toward the gap (the rest "pending Springfield"), with
+visible meter cliffs and post-choice consequence beats. See SPEC §13 and worklog.md.
+
 ## Standing rules (apply every session, every turn)
 - Test-first, red/green: write a failing test, make it pass, refactor. No feature
   without a test exercising a real playthrough — never placeholder/tautological tests.
 - No dollar figure, percentage, or savings/revenue number may appear anywhere in the
   game or code that is not present in ./data/sources.enriched.json. If it's not in the data,
-  it doesn't exist.
+  it doesn't exist. This forbids fabricated **budget figures** — any dollar/percent/
+  savings/revenue *claim about Chicago*. It does NOT forbid **game-design tuning constants**:
+  SPEC §8 meter weights (`METER_WEIGHTS`) and realization/scaling factors (the §6
+  midpoint/÷10 rules, `STATE_CONFIRMED_SHARE`) score a choice or scale a real data figure —
+  they assert no new budget number. Keep such constants in the engine as named, commented
+  values (never inline magic numbers), so the distinction stays auditable.
 - Never edit, move, or overwrite the PDFs in ./reports/. They are read-only source.
 - Any Python script uses uv (e.g. `uv run script.py`).
 - Keep game logic (the engine) separate from rendering (the view). The engine emits

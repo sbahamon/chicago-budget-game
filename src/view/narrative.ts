@@ -10,17 +10,31 @@ import type {
   Target,
   Basis,
   Decision,
+  LeverDecision,
+  Meters,
+  LeverOutcome,
+  StateStatus,
 } from "../engine/index";
 import {
   targetAmount,
   gapClosedPct,
   countsToward,
+  stateStatus,
+  allOptions,
+  availableDecisions,
+  ENDING_THRESHOLDS,
 } from "../engine/index";
 import type { Variant } from "../engine/index";
 import {
   CHARACTERS,
   CHOICE_LABELS,
   CONSEQUENCE,
+  STATE_CHIPS,
+  STATE_FRICTION,
+  WARNINGS,
+  BITE,
+  TARGET_COPY,
+  ENDING_COPY,
   ACTS,
   type Character,
 } from "./copy";
@@ -56,6 +70,94 @@ export function choiceLabels(
   direction: Direction | null,
 ): Partial<Record<Variant, string>> {
   return CHOICE_LABELS[direction ?? "none"];
+}
+
+/** The honest "what's real / what's a model" counts for the splash, derived from the data. */
+export interface SplashFacts {
+  reports: number;
+  options: number;
+  dissents: number;
+  decisions: number;
+  levers: number;
+  dials: number;
+  meters: number;
+  targets: number;
+  endings: number;
+  stateLevers: number;
+}
+
+/** Compute the splash honesty numbers from the engine/data — never hardcoded prose. */
+export function splashFacts(): SplashFacts {
+  const opts = allOptions();
+  const decisions = availableDecisions();
+  const levers = decisions.filter((d): d is LeverDecision => d.kind === "lever");
+  return {
+    reports: new Set(opts.map((o) => o.report)).size,
+    options: opts.length,
+    dissents: opts.filter((o) => o.has_dissent).length,
+    decisions: decisions.length,
+    levers: levers.length,
+    dials: decisions.filter((d) => d.kind === "dial").length,
+    meters: 4, // gap + political capital + equity + long-term health (SPEC §8 Meters)
+    targets: Object.keys(TARGET_COPY).length,
+    endings: Object.keys(ENDING_COPY).length,
+    stateLevers: levers.filter((d) => stateStatus(d.optionId) === "state").length,
+  };
+}
+
+/** Whether/how a lever depends on Springfield, for the V1 tag + framing (null = City). */
+export interface StateFriction {
+  status: Exclude<StateStatus, "city">;
+  tag: string;
+  line: string;
+}
+
+/** Surface a lever's State dependency (null for City-controlled levers). V1. */
+export function stateFriction(option: Option): StateFriction | null {
+  const status = stateStatus(option.id);
+  if (status === "city") return null;
+  return { status, tag: STATE_CHIPS[status], line: STATE_FRICTION[status] };
+}
+
+/** A meter that has crossed a §9 ending threshold, for the V3 cliff warnings. */
+export interface MeterWarning {
+  meter: "political_capital" | "equity";
+  level: "warn" | "danger";
+  text: string;
+}
+
+/** Warnings for any meter at/over an ending cliff (empty while all are healthy). V3. */
+export function meterWarnings(
+  meters: Pick<Meters, "political_capital" | "equity">,
+): MeterWarning[] {
+  const T = ENDING_THRESHOLDS;
+  const out: MeterWarning[] = [];
+  if (meters.political_capital <= T.lame_duck_pc) {
+    out.push({ meter: "political_capital", level: "danger", text: WARNINGS.political_capital_danger });
+  } else if (meters.political_capital <= T.reformer_pc) {
+    out.push({ meter: "political_capital", level: "warn", text: WARNINGS.political_capital_warn });
+  }
+  if (meters.equity <= T.austerity_equity) {
+    out.push({ meter: "equity", level: "danger", text: WARNINGS.equity_danger });
+  }
+  return out;
+}
+
+/**
+ * The consequence that lands AFTER a choice (V2), selected from the engine's
+ * emitted outcome. Returns null when there's nothing pointed to say. Priority:
+ * the silent non-event (no-count plug) first, then Springfield risk, then the
+ * opposing-both no-win, then a regressive hit, then a structural win.
+ */
+export function biteLine(outcome: LeverOutcome, target: Target): string | null {
+  const counts = outcome.counts_toward.includes(target);
+  const isPlug = outcome.basis === "one_time" || outcome.basis === "ten_year_pv";
+  if (isPlug && outcome.dollar_impact > 0 && !counts) return BITE.no_count;
+  if ((outcome.at_risk_dollars ?? 0) > 0) return BITE.state_at_risk;
+  if (outcome.choice === "opposing_max" || outcome.choice === "opposing_zero") return BITE.opposing;
+  if (outcome.meter_deltas.equity <= -10) return BITE.regressive;
+  if (outcome.meter_deltas.long_term_health >= 10) return BITE.structural;
+  return null;
 }
 
 /** Plain-language second-order meaning of a choice, by basis + selected target. */

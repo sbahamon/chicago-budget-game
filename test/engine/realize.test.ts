@@ -6,6 +6,8 @@ import {
   realizedBase,
   realizeDollar,
   countsToward,
+  STATE_CONFIRMED_SHARE,
+  atRiskDollar,
 } from "../../src/engine/realize";
 import type { DollarRange } from "../../src/engine/types";
 
@@ -105,6 +107,26 @@ describe("realizeDollar variants (SPEC §6 / §7c)", () => {
   test("opposing placate branch banks 0", () => {
     const o = getOption("institute-vacancy-freeze");
     expect(realizeDollar(o, "opposing_zero")).toBe(0);
+  });
+});
+
+describe("atRiskDollar — State-dependent levers ride on Springfield (E1)", () => {
+  test("a State-dependent lever puts (1 - share) of its realized yield at risk", () => {
+    const o = getOption("cfftf-ltl-secure-cps-pension-contributions"); // state-dependent
+    const realized = realizeDollar(o, "base");
+    expect(atRiskDollar(o, realized)).toBeCloseTo(realized * (1 - STATE_CONFIRMED_SHARE), EPS);
+    expect(STATE_CONFIRMED_SHARE).toBeGreaterThan(0);
+    expect(STATE_CONFIRMED_SHARE).toBeLessThan(1);
+  });
+
+  test("a City-controlled lever has nothing at risk", () => {
+    const o = getOption("reinstitute-head-tax"); // city-controlled
+    expect(atRiskDollar(o, realizeDollar(o, "base"))).toBe(0);
+  });
+
+  test("a State-dependent lever banking $0 (deferred) has $0 at risk", () => {
+    const o = getOption("cfftf-ltl-secure-cps-pension-contributions");
+    expect(atRiskDollar(o, realizeDollar(o, "defer"))).toBe(0);
   });
 });
 

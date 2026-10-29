@@ -3,6 +3,7 @@
 // the basis. Options with no figure realize 0 (e.g. structural pension plays).
 
 import { isDollarRange, stateStatus } from "./data";
+import { assumptionValue } from "./sources";
 import type { Basis, DollarEstimate, Option, Target } from "./types";
 
 /**
@@ -81,10 +82,11 @@ export function realizeDollar(option: Option, variant: Variant): number {
 // realized yield is treated as confirmed/countable; the remainder is "at risk,
 // pending Springfield." STATE_CONFIRMED_SHARE is a game-design tuning constant in
 // the same category as the §8 meter weights and the §6 midpoint/÷10 rules — it
-// scales a real data figure, it does not assert any new budget figure.
+// scales a real data figure, it does not assert any new budget figure. Its value and
+// rationale live in data/assumptions.json (REVAMP §4) so the Math page can list it.
 
 /** Share of a State-dependent lever's yield that counts toward the gap (E1, tunable). */
-export const STATE_CONFIRMED_SHARE = 0.7;
+export const STATE_CONFIRMED_SHARE = assumptionValue("state_confirmed_share");
 
 /** Share of `option`'s yield that actually counts (1 for City-controlled levers). */
 export function stateConfirmedShare(option: Option): number {

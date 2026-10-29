@@ -1,33 +1,68 @@
 # Chicago Budget Game — Project Rules
 
 ## What this is
-An interactive, data-grounded game where the player acts as Chicago's mayor closing
-the city's structural budget gap by choosing among real reform options drawn from the
-three reports in ./reports/. Modeled on the "you are the developer" structure of
-Daniel Kay Hertz's affordable housing game. v1 is MAYOR MODE ONLY. A persona-based
-"Chicagoan mode" is planned for v2 — keep the engine persona-agnostic so v2 is
-additive, not a rewrite.
+A data-grounded website about Chicago's budget, in three parts that share one 10-year
+scoreboard: **Follow the dollar** (`#follow`), **Close the gap** (`#gap`, build a plan
+from real options in any order) and **Grow the base** (`#grow`, zoning and long-term tax
+value), plus `#math` and `#sources`. v2 replaces the v1 mayor game (fixed decision order,
+four meters, seven endings). `REVAMP.md` is the brief and phase plan; `SPEC.md` is the
+design of record (v1 spec archived at `docs/SPEC-v1.md`). **If REVAMP.md and this file
+disagree, follow REVAMP.md and fix this file.** Work one REVAMP §13 phase per session,
+one pull request per phase. REVAMP §14 questions are Steffany's to answer: ask, don't guess.
 
-v1.1 added an urgency & State-friction pass (engine boundary preserved): State-dependent
-levers count only part of their yield toward the gap (the rest "pending Springfield"), with
-visible meter cliffs and post-choice consequence beats. See SPEC §13 and worklog.md.
+Until Phase 2 replaces it, the v1 game still serves the site root (empty hash); its
+meters/endings/decision-sequence code is deleted together with its tests when `#gap` ships.
 
 ## Standing rules (apply every session, every turn)
 - Test-first, red/green: write a failing test, make it pass, refactor. No feature
-  without a test exercising a real playthrough — never placeholder/tautological tests.
-- No dollar figure, percentage, or savings/revenue number may appear anywhere in the
-  game or code that is not present in ./data/sources.enriched.json. If it's not in the data,
-  it doesn't exist. This forbids fabricated **budget figures** — any dollar/percent/
-  savings/revenue *claim about Chicago*. It does NOT forbid **game-design tuning constants**:
-  SPEC §8 meter weights (`METER_WEIGHTS`) and realization/scaling factors (the §6
-  midpoint/÷10 rules, `STATE_CONFIRMED_SHARE`) score a choice or scale a real data figure —
-  they assert no new budget number. Keep such constants in the engine as named, commented
-  values (never inline magic numbers), so the distinction stays auditable.
-- Never edit, move, or overwrite the PDFs in ./reports/. They are read-only source.
-- Any Python script uses uv (e.g. `uv run script.py`).
-- Keep game logic (the engine) separate from rendering (the view). The engine emits
-  structured outcomes — a lever's dollar impact, the group(s) affected, meter
-  movements — and the view renders them. v2 adds a second view, not new engine logic.
+  without a test exercising real data or a real plan — never placeholder/tautological tests.
+- **No made-up numbers.** Every dollar figure, percentage, or savings/revenue number in
+  the site or code must trace to one of three sources (SPEC §3):
+  1. **report** — `data/sources.enriched.json` (rules below, unchanged);
+  2. **public** — `data/public/*.json`, built by `data/pipeline/*.py`; each figure records
+     its link, dataset or PDF page, download date and raw file (kept in
+     `data/raw/public/`), and the file names its script;
+  3. **modeled** — `data/modeled.json` (formula + input refs + assumption ids) and
+     `data/assumptions.json` (each assumption `sourced` with a link, or `judgment` with a
+     rationale; the Math page lists them all).
+  `test/data/provenance.test.ts` validates all three and scans every file in `src/` and
+  `index.html`: a money/percent figure that matches no registered number fails the build.
+  Game-design scaling factors (e.g. `state_confirmed_share`, the Springfield partial
+  credit) are `judgment` assumptions in `assumptions.json`, read by the engine by id —
+  never inline magic numbers. They scale a real figure; they assert no budget number.
+- Never edit, move, or overwrite the PDFs in ./reports/. New PDFs may be added there.
+- Any Python script uses uv (e.g. `uv run script.py`); the pipeline is a uv project in
+  `data/pipeline/` (`uv run pytest`). Pipeline scripts are deterministic and each has a
+  test checking a total against its source document.
+- Keep game logic (the engine, `src/engine/`) separate from rendering (the view,
+  `src/view/`). The engine emits facts; the view decides how to show them.
+
+## Plan-based game logic (SPEC §5)
+- A **plan** is an unordered set of chosen options, each with a setting (how far it's
+  turned up) and any switches. Order never matters. Plans are encoded in the link
+  (`#gap?plan=...`) so a shared link reopens the same plan.
+- Every option yields **ten yearly amounts** (FY2027 on): one-time money in year 1 only;
+  recurring money every year; growth ramps per `assumptions.json`. Springfield partial
+  credit applies every year. The baseline is the city's 2027 budget forecast.
+- Each option reports: its yearly amounts (city, and CPS where relevant), one-time vs
+  recurring, who pays or loses a service, Springfield status, confidence, source refs,
+  and any recorded dissent.
+- **No double counting:** `modeled.json` `interaction_rules` (`exclusive` | `shrinks`)
+  are enforced by the engine.
+- The scoreboard reports baseline vs plan gap over 10 years, closed in year 1 and year
+  10, and the one-time share; a whole-bill view adds CPS (whole-bill = city + CPS).
+
+## Plain-language rules (everything on screen; SPEC §6)
+- All on-screen text lives in `src/view/copy.en.ts` and `src/view/copy.es.ts` (same
+  keys, enforced). No dollar/percent figure in copy: numbers come from data at render.
+- Write for someone who has never read a budget; aim under 20 words per sentence. A test
+  fails any on-screen sentence over 30 words.
+- Never show "EAV" on screen — say "taxable value" (tested). Use the glossary words
+  defined the same way, with tap-to-define on first use.
+- Turn big numbers into personal ones (per household, per dollar). Name what an option
+  does, with the report title in smaller text underneath.
+- Stay neutral in Parts 1 and 2: every side presented the same way, credited to its
+  source; never say which plan "wins".
 
 ## Source of truth: ./data/sources.enriched.json
 The data of record (194 options). `data/sources.json` is the pre-verification raw
@@ -59,14 +94,14 @@ Per-option `verify{}` block (verification + engine-facing enrichment):
                      library_culture, operations_efficiency, other, pensions,
                      personnel_benefits, procurement, public_safety,
                      real_estate_assets, revenue_tax, tif, transportation_mobility
-- contested        — true | false (drives forks + dial HIGH routing per SPEC §7)
+- contested        — true | false (drives forks + dial HIGH routing per SPEC-v1 §7)
 - leverage_tier    — small | medium | large | mega | one_time | none | zero
-                     (banding for domain dials, SPEC §7b; thresholds in verify.meta)
+                     (banding for domain dials, SPEC-v1 §7b; thresholds in verify.meta)
 - lever_type       — verified lever_type; lever_type_ok (bool),
                      lever_type_suggested (string|null) flag/justify any mismatch
 - figure           — verified dollar figure, or null when no figure applies. Fields:
   - basis              — annual | one_time | upfront_cost | ten_year_cumulative |
-                         ten_year_pv (drives target counting + realization, SPEC §6)
+                         ten_year_pv (drives target counting + realization, SPEC-v1 §6)
   - annual_equivalent  — basis-normalized recurring value (annual as-is; ten_year_*
                          ÷10; one_time/upfront_cost null); records the range HIGH end
   - annual_equivalent_approx — true when the normalization is approximate
@@ -77,14 +112,14 @@ Per-option `verify{}` block (verification + engine-facing enrichment):
 
 ### structural_gap[] — list of 13 headline gap figures (NOT a single value)
 Each: amount, fiscal_year_or_basis, page, report, source_body, verbatim_anchor.
-The three difficulty targets (SPEC §2) cite specific entries from this list.
+The three difficulty targets (SPEC-v1 §2) cite specific entries from this list.
 
 ### top-level verify{} — corpus-wide verification artifacts
 - dissent_taxonomy — { taxonomy[], total_dissents, opposing_split_ids[], validated[],
   notes }. `taxonomy[]` has 4 direction categories; each entry's `definition` lists its
   member ids. Engine derives a lever's dissent **direction** — one of {too_far,
   not_far_enough, alternative_or_caution, opposing_both} — from these member lists
-  (SPEC §4). `opposing_split_ids` flags the A/B dual-dissent options (note: only
+  (SPEC-v1 §4). `opposing_split_ids` flags the A/B dual-dissent options (note: only
   institute-vacancy-freeze and increase-autonomous-drones-cpd are genuinely opposing).
 - overlap_groups — list of dedup groups; each: kind (umbrella_vs_components |
   internal_component | granular_vs_grouping | multi_way_same_asset), member_ids[],

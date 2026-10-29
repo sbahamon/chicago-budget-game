@@ -1,388 +1,272 @@
-# Chicago Budget Game — SPEC v1 (Mayor Mode)
+# Chicago Budget Game — SPEC v2
 
-Specification for v1 of the Chicago Budget Game. **Mayor mode only.** No engine/view/game
-code is defined here beyond shapes and rules — implementation is test-first per `CLAUDE.md`.
+The design of record for v2. It is written from `REVAMP.md` (the brief, with the
+reasons behind each choice); if the two disagree, REVAMP wins and this file gets fixed.
+The v1 mayor-mode spec is archived at `docs/SPEC-v1.md`.
 
-Every dollar figure in this spec traces to `data/sources.enriched.json`, cited by option
-id. No number appears in the game or its code that is not in the data. The engine is
-persona-agnostic so v2 ("Chicagoan mode") adds a second **view** over the same engine, not
-new engine logic.
-
-**Data basis:** `data/sources.enriched.json` — 194 options, 13 `structural_gap` figures, a
-per-option `verify` block (`domain`, `leverage_tier`, `figure.basis`,
-`figure.annual_equivalent`, `figure.dollar_estimate`, `contested`), and
-`verify.overlap_groups` / `verify.dissent_taxonomy`. Reconciliation in `data/VERIFY_REPORT.md`.
+Build rules (test-first, engine/view split, no made-up numbers, uv for Python) are in
+`CLAUDE.md`. Progress is logged in `worklog.md`.
 
 ---
 
-## 1. Game overview
-The player is Chicago's mayor closing the city's structural budget gap by choosing among
-real reform options. The player picks a **difficulty target**, then moves through a fixed
-sequence of **decisions** (standalone levers, domain dials, dissent forks). Each choice
-banks a dollar impact and moves four meters. At the end the engine evaluates the final
-state and the view renders one of several **endings**.
+## 1. Product
 
-## 2. Gap targets (difficulty)
-Selectable at game start. Default = Near-term.
+One website in three parts that share one scoreboard:
 
-| target | amount | FY | counting rule | cite (`structural_gap`) |
-|---|---|---|---|---|
-| **Near-term** (DEFAULT) | **~$1.15B** | FY2026 | one-time AND recurring both count | EY p.4 |
-| **Durable** | **$680M** | FY2027 | recurring ONLY; one-time plugs do not count toward victory | CFFTF Final p.5 |
-| **Stretch** | **$780M** | FY2027 | recurring ONLY; harder | CFFTF Final p.10 |
-
-"Recurring vs one-time" is decided by each banked lever's **basis** (see §6).
-
-## 3. Engine / view separation
-- **Engine** = pure functions over option data + player choices. Emits structured
-  `LeverOutcome` objects and a running `GameState`. Knows nothing about text/UI.
-- **View** = renders outcomes/state. v1 ships one mayor-mode view. v2 adds a Chicagoan
-  view reading the SAME `LeverOutcome`/`GameState`.
-- No dollar/percent/savings number anywhere except read from `sources.enriched.json`.
-
-## 4. Option schema (read from `data/sources.enriched.json`)
-The engine reads each `options[]` row. Fields consumed:
-- `id`, `name`, `lever_type` (revenue|cut|structural|one-time), `timing`
-- `dollar_estimate` (number | {low,high} | null), `unit`
-- `who_is_affected`, `feasibility_note`, `has_dissent`, `dissent_summary`
-- `report`, `page`, `verbatim_anchor` (provenance for traceability)
-- `verify.domain`, `verify.contested`, `verify.leverage_tier`
-- `verify.figure.basis` (annual|one_time|upfront_cost|ten_year_cumulative|ten_year_pv)
-- `verify.figure.annual_equivalent`, `verify.figure.annual_equivalent_approx`,
-  `verify.figure.dollar_estimate` {low,high}
-- Top-level `structural_gap[]` (gap targets); `verify.overlap_groups` (dedup).
-
-Dissent **direction** is derived from `verify.dissent_taxonomy.taxonomy[].definition`
-member lists → one of {too_far, not_far_enough, alternative_or_caution, opposing_both}.
-
-## 5. Engine structured outcome shape
-```
-LeverOutcome {
-  decision_id        # which mayor decision produced this
-  option_id          # source option (or dial id)
-  choice             # 'low'|'med'|'high' (dial) | 'base'|'fork' (lever) | fork variant
-  dollar_impact      # number, from data (range -> realized per §6 rule)
-  basis              # annual|one_time|upfront_cost|ten_year_cumulative|ten_year_pv
-  counts_toward      # subset of ['near_term','durable','stretch'] per §6
-  affected_groups    # from who_is_affected
-  meter_deltas { gap_progress, political_capital, equity, long_term_health }
-  provenance { option_id, report, page, verbatim_anchor }   # no-invented-numbers trace
-}
-
-GameState {
-  target,
-  banked: LeverOutcome[],
-  meters { gap_progress, political_capital, equity, long_term_health },
-  derived { one_time_share, gap_closed_pct }
-}
-```
-
-## 6. Basis → counting + dollar realization
-**Counts toward each target:**
-| basis | near_term | durable | stretch | flavor |
-|---|---|---|---|---|
-| annual | ✓ | ✓ | ✓ | recurring |
-| ten_year_cumulative | ✓ | ✓ | ✓ | recurring (EY 10-yr op savings; bank figure/10) |
-| one_time | ✓ | ✗ | ✗ | one-time plug → "Kicked the Can" |
-| upfront_cost | ✓ (as cost) | ✗ | ✗ | one-time |
-| ten_year_pv | ✓ | ✗ | ✗ | asset monetization = one-time plug ("asset sales"); bank figure/10 |
-
-**Dollar realized from a range: MIDPOINT.** A ranged option banks `(low+high)/2`; a point
-figure banks the point; ten-year bases bank `(midpoint)/10`. A `too_far` scaled-back fork
-banks the range LOW instead. (The midpoint of a range therefore sits below the data's
-`annual_equivalent` field, which records the high end.)
-
-**`upfront_cost` in the one_time_share ratio.** An `upfront_cost` outcome adjusts
-`gap_progress` only — it is a negative near-term cost, never a positive plug. It is
-therefore **excluded from BOTH the numerator and the denominator** of `one_time_share`
-(§9). Including a negative in either would make the ratio ill-defined. Concretely:
-`one_time_share = (one_time + ten_year_pv dollars) / (all banked dollars EXCEPT
-upfront_cost)`. `upfront_cost` still subtracts from `gap_progress` and still counts only
-toward near-term (§6 table).
-
-## 7. Choice architecture
-~**18 decisions**: 15 standalone levers + 3 domain dials + dissent forks attached to the
-contested standalone levers. Dials carry their own HIGH-tier equity/political-capital cost;
-forks live on the contested standalone levers.
-
-### 7a. Standalone levers (one option per decision)
-Material and/or contested, spread across domains. Each `*` carries a dissent → gets a fork
-(§7c). `$` realized at MIDPOINT per §6.
-| # | id | domain | $ (data) | realized | basis | dissent dir |
-|---|---|---|---|---|---|---|
-| 1 | `cfftf-ltl-secure-cps-pension-contributions` * | pensions | $175.0M | $175.0M | annual | alternative_or_caution |
-| 2 | `cfftf-re-increase-lgdf-share-rate` * | revenue_tax | $35.0–250.0M | $142.5M | annual | alternative_or_caution |
-| 3 | `cfftf-re-expand-sales-tax-base-consumer-services` * | revenue_tax | $78.0–305.0M | $191.5M | annual | too_far |
-| 4 | `expand-congestion-surcharge-rideshare` * | transportation_mobility | $26.0–103.0M | $64.5M | annual | too_far |
-| 5 | `ey-procurement-category-management` | procurement | $55.0–111.0M | $83.0M | annual | — |
-| 6 | `adjust-city-property-tax` * | revenue_tax | $56.0M | $56.0M | annual | too_far |
-| 7 | `reinstitute-head-tax` * | revenue_tax | $10.2–25.6M | $17.9M | annual | too_far |
-| 8 | `establish-autonomous-taxi-framework` * | transportation_mobility | $34.5–36.3M | $35.4M | annual | alternative_or_caution |
-| 9 | `favor-natural-expiration-of-tifs` * | tif | $11.0M | $11.0M | annual | too_far |
-| 10 | `declare-maximum-tif-surplus` * | tif | $137.0M | $137.0M | one_time | too_far |
-| 11 | `disband-cpd-mounted-unit` * | public_safety | $5.9M | $5.9M | annual | too_far |
-| 12 | `increase-autonomous-drones-cpd` * | public_safety | $0.4M | $0.4M | annual | **opposing_both** |
-| 13 | `cfftf-ltl-advanced-supplemental-payment` * | pensions | null | $0 | annual (structural) | alternative_or_caution |
-| 14 | `institute-vacancy-freeze` * | personnel_benefits | $143.7–161.7M | $152.7M | one_time | **opposing_both** |
-| 15 | `optimize-real-estate-portfolio` * | real_estate_assets | $29.5M | $29.5M | one_time | too_far |
-
-**#13 (ADC) is a long_term_health play, not a dead $0 option.** It banks $0 toward the gap
-but takes the structural/pension meter row (§8): +12 long_term_health, +4 equity, −8 PC.
-A player chasing the **Structural Reformer** ending (needs long_term_health ≥ 30) has a real
-reason to spend a decision on it. Same logic makes #1 (secure-cps) doubly valuable: $175M
-recurring AND +12 long_term_health.
-
-**#14 (vacancy-freeze) was pulled out of the Personnel dial.** It is one of only two genuine
-dual-dissent options in the data (the other is #12 drones; VERIFY_REPORT §5). Material +
-spread selection had absorbed it as an anonymous one-time line inside the dial's HIGH tier;
-that wasted its `opposing_both` character. It is surfaced as its own decision with an
-`opposing_both` fork (§7c), and removed from the dial's one-time pool (§7b math re-shown).
-
-**#15 (real-estate) is a single one-time toggle, demoted from a dial** (see §7b note).
-
-**#12 (drones) is an intentional KEEP, not redundancy.** At ~$0.4M it carries effectively
-no budget weight — its entire value is the surveillance-vs-"can't-replace-a-helicopter"
-fork. It pairs with #14 as two `opposing_both` showcases of *different texture*: #14 is the
-high-stakes money-vs-people no-win ($152.7M one-time on the line), #12 is the pure-values /
-~$0 no-win (a choice with no fiscal payoff at all). Keeping both demonstrates the mechanic
-across both registers.
-
-**No v1 selected decision produces an `upfront_cost` outcome.** Every basis in §7a is
-`annual` or `one_time`. The `upfront_cost` handling in §6/§9 is an engine-correctness guard
-(the data contains such options, e.g. `rent-opsa-regional-training-facility`), not a live
-v1 path — see the §11 unit-test stub.
-
-### 7b. Domain dials (one low/med/high dial per big/low-interest domain)
-**Band source field:** each member's contribution = a **basis-normalized midpoint** —
-identical to the normalization in `verify.figure.annual_equivalent` (annual / one-time
-as-is; `ten_year_cumulative` and `ten_year_pv` ÷ 10), but using the range MIDPOINT not the
-field's high end (per §6). Bands are therefore built from the basis-normalized value, never
-a raw 10-yr `dollar_estimate`. (Worked example: `ey-svcopt-oemc-traffic-parking-enforcement`
-$84.2M ten_year_cumulative → $8.42M; `ey-svcopt-oemc-311-call-center` $40.1M → $4.01M.)
-
-**Banding rule:** cumulative by `leverage_tier` over UNCONTESTED priced options
-(LOW=small, MED=+medium, HIGH=+large/mega); ALL contested ids route into HIGH — pushing a
-dial to HIGH is what triggers its equity/political-capital cost. Empty leading tiers
-collapse. Overlap pools (VERIFY_REPORT §3) deduped to ONE representation. Dollar = sum of
-basis-normalized midpoints, **split recurring vs one-time** (drives target counting per §6).
-
-| dial | LOW (rec/1×) | MED (rec/1×) | HIGH (rec/1×) | representation / notes |
-|---|---|---|---|---|
-| **Fees & Fines** | $24.65M / $0 | $78.12M / $0 | **$288.07M / $0** | all recurring. Special-events deduped to EY umbrella `ey-special-events-cost-recovery-program`; `ey-fees-vehicle-sticker-tax` dropped (Vehicle Fund, not Corporate). HIGH adds garbage-fee ($158.25M mid) + TNT + `index-fees-fines-inflation-annually` (no-$; meter cost only) — all too_far. |
-| **Personnel & Benefits** | $11.80M / $0 | $58.10M / $0 | **$177.80M / $14.10M** | benefits pool = CFFTF Interim 5 groupings (EY granular dropped). HIGH one-time = `implement-flexible-furlough-days` ($14.1M) only — `institute-vacancy-freeze` removed to standalone #14. On durable/stretch HIGH yields $177.80M. |
-| **Operations & Org Efficiency** | $6.52M / $0 | $38.87M / $0 | **$175.87M / $0** | all recurring; no contested members. HIGH = org-consolidate ($50M mid) + shared-labor ($50M mid) + spans-of-control ($37M) levers. |
-
-**Real Estate is NOT a dial.** It became standalone toggle #15. A low/med/high dial here
-was near-inert ($4.3M recurring across all settings; the money is one-time PV) AND it
-double-counted the §3 monetization pool (banking EY-granular rows *and* the Interim
-`optimize-real-estate-portfolio` representation in the same band). Demoting to a single
-one-time "monetize non-core assets?" toggle (`optimize-real-estate-portfolio`, $29.5M
-one-time, too_far) keeps ONE representation, removes the double-count, and is a cleaner
-decision object that honestly reads as a near-term-only plug feeding "Kicked the Can."
-
-**Double-count check — VERIFY_REPORT §3 overlap_groups, ≤1 representation per band (CONFIRMED):**
-| overlap_group (kind) | representation kept | dropped |
+| Part | Page | What the player does |
 |---|---|---|
-| Special Events (umbrella_vs_components) | `ey-special-events-cost-recovery-program` | 8 CFFTF component rows + EY sub-rows |
-| $11.9M parade (internal_component) | (covered by umbrella) | `reclaim-costs-non-city-parades` |
-| Employee Benefits (granular_vs_grouping) | CFFTF Interim 5-grouping layer¹ | all `ey-benefits-*` granular |
-| Real Estate (multi_way_same_asset) | `optimize-real-estate-portfolio` (toggle #15) | EY-granular layer + Final qualitative |
+| 1. Follow the dollar | `#follow` | See where the city's money comes from and goes, and where a property tax bill goes. |
+| 2. Close the gap | `#gap` | Build a plan from real options, in any order, and see it over 10 years. |
+| 3. Grow the base | `#grow` | See tax value per acre, then turn on zoning changes and see the money they add over time. |
 
-¹ The 5 CFFTF groupings are ONE layer that *partitions* the pool (additive within-layer, no
-mutual overlap); the dedup is layer-vs-layer (grouping layer chosen, EY granular layer
-dropped). No band contains two layers of any group.
+Plus `#math` (every formula and assumption) and `#sources` (every source).
 
-**Soft-overlap caveat + sensitivity (not a §3 group):** `ey-fees-top14-high-impact`
-($32.55M) / `ey-fees-additional-revenue-raising` ($14.50M) may partly overlap the granular
-`adjust-*` fee rows. VERIFY_REPORT §3 does NOT declare this an overlap_group, so they are
-kept distinct per the data of record — **(a) is the spec'd value**; the dedup is unchanged.
-Because Fees-HIGH is the largest dial in the §7d near-term math, the HIGH band is shown both
-ways:
-| Fees & Fines HIGH | recurring total |
-|---|---|
-| **(a) as-is (spec'd)** | **$288.07M** |
-| (b) sensitivity floor — two EY aggregate rows removed | $241.02M |
-| delta | $47.05M |
+**Goals.** (1) Make budget season understandable in under five minutes. (2) Show that
+zoning leaves long-term money on the table, by putting growth on the same scoreboard
+as cuts and taxes.
 
-(b) is a **sensitivity floor**, not a spec change — carried into the §7d note below.
+## 2. Kept from v1 / removed
 
-### 7c. Dissent forks (generated from direction)
-Each contested standalone lever (the `*` rows) offers a fork reflecting what the dissenter
-actually argued, cited to a page. **Fork dollar conventions** (deterministic, tunable):
-- **too_far** → scaled-back variant: banks range LOW for ranged options; for a point-figure
-  option, banks 50% of the point. Lower equity/political-capital cost than the base.
-- **not_far_enough** → push-harder variant: banks range HIGH (or +25% over a point figure);
-  more political heat, but +equity (it answers a "too timid" dissent).
-- **alternative_or_caution** → the dissenter's alternative path OR study-and-delay (banks
-  $0 now, defers; small long-term-health cost).
-- **opposing_both** → no-win showcase fork (§8 has its own meter row). Two branches; both
-  cost political_capital; **equity moves in OPPOSITE directions by branch** so the no-win is
-  legible — placate one camp, anger the other, either way:
-  - `#12 increase-autonomous-drones-cpd`: *scale-down* branch (less surveillance) banks ~$0,
-    +equity (placates privacy/community), −PC (angers safety hawks); *scale-up* branch banks
-    the figure, −equity (surveillance/tracking harm), −PC (angers privacy advocates).
-    Cites dissent A (surveillance) vs B ("can't replace a helicopter"), p.30.
-  - `#14 institute-vacancy-freeze`: *soft* branch (no aggressive freeze) banks ~$0, +equity
-    (avoids burnout/overtime on remaining staff), −PC; *hard* branch banks $152.7M one-time,
-    −equity, −PC. Cites dissent A (goes too far: overtime/burnout) vs B (not far enough:
-    eliminate >2yr CPD vacancies, shift parking enforcement, route calls to CARE), p.16.
+**Kept:** engine/view split; test-first; the no-made-up-numbers rule (extended, §3);
+`data/sources.enriched.json` as the master list of the 194 report options; partial
+credit for Springfield-dependent options; the read-only PDFs in `./reports/` (new
+PDFs may be added, existing ones never edited); `uv` for Python; the GitHub Pages deploy.
 
-> **Flag — `not_far_enough` is dead code in v1.** No v1 selected lever (§7a) has direction
-> `not_far_enough` (the only such options in the data — `continue-overtime-reduction`,
-> `cfftf-re-benchmark-taxes-fees-expenditures`, `cfftf-ed-missing-middle-infill-housing` —
-> are either inside a dial or not selected). The convention is defined for completeness/v2;
-> the build session should NOT write a test asserting a `not_far_enough` path and should NOT
-> treat its absence as a bug.
+**Removed:** the fixed decision sequence and the mayor role; the four meters and the
+seven endings (the only scoring is the scoreboard, §5). Their code and tests are
+deleted together, and the deletion is logged in `worklog.md`. While the v1 game still
+serves the site root (until `#gap` replaces it in Phase 2), its engine modules stay.
 
-### 7d. Balance sanity check (aggressive path, basis-normalized midpoint, from data)
-Shown under both the spec'd Fees-HIGH value **(a) $288.07M** and the sensitivity floor
-**(b) $241.02M** (§7b item 2):
-- **Recurring potential:** standalones (recurring) ≈ $783.1M + dials-HIGH recurring
-  (personnel $177.80M + ops $175.87M + fees) →
-  **(a) ~$1.425B** (fees $288.07M) · **(b) ~$1.378B** (fees $241.02M).
-  → Durable $680M and Stretch $780M closeable with recurring levers ONLY under both. ✓
-- **One-time potential (near-term only):** `declare-maximum-tif-surplus` $137.0M +
-  `institute-vacancy-freeze` $152.7M + real-estate toggle $29.5M + personnel-dial 1× $14.1M
-  ≈ **$333.3M**.
-- **Near-term total potential:** **(a) ~$1.758B** · **(b) ~$1.711B** vs $1.15B target →
-  near-term headroom **(a) $608M** · **(b) $561M**. A meaningful recurring-vs-one-time
-  tradeoff (the choice that drives Reformer-vs-Kicked-the-Can).
-- **All three targets remain closeable on the aggressive path under both (a) and (b).** ✓
-  The soft-overlap sensitivity costs ~$47M of headroom — comfortably within margin.
-- **Humane-path ceiling (see §11 test):** the equity-maximizing path does NOT close the
-  near-term gap. Provisional data-derived estimate ≈ **35–45% closed → "Crisis Deepens"**,
-  to be PINNED as a golden value on the first engine run. The shortfall is intended: a
-  humane budget cannot be balanced on this menu without regressive levers or one-time plugs.
+## 3. Where every number comes from
 
-## 8. Meters + default weights (TUNABLE)
-Four meters in `GameState.meters`:
-- **gap_progress** — sum of banked `dollar_impact` under the target's counting rule (§6).
-- **political_capital** — start 100. Each lever costs PC; contested / dial-HIGH cost more.
-- **equity** — start 0 (−100..+100). Regressive too_far levers lower it; progressive
-  revenue / scaled-back forks raise it.
-- **long_term_health** — start 0. Structural reforms + pension funding raise it; one-time
-  plugs + study-and-delay lower it. Distinct from gap_progress (durability, not dollars).
+Every number on the site traces to one of three sources. Each is validated by
+`test/data/provenance.test.ts`.
 
-Default deltas (flagged tunable — expected to be adjusted by playtesting, not finalized here):
-| attribute | political_capital | equity | long_term_health |
-|---|---|---|---|
-| base lever banked | −5 | 0 | 0 |
-| contested lever (too_far, regressive) | −10 | −12 | 0 |
-| contested lever (too_far, scaled-back fork) | −5 | −5 | 0 |
-| contested lever (not_far_enough, harder fork) | −15 | +6 | +4 |
-| contested lever (alternative_or_caution, base taken) | −8 | 0 | 0 |
-| **opposing_both fork — placate-vulnerable branch** | **−10** | **+8** | 0 |
-| **opposing_both fork — other branch** | **−10** | **−8** | 0 |
-| dial LOW / MED / HIGH | −3 / −7 / −15 | 0 / −3 / −12 | 0 |
-| one_time / ten_year_pv plug banked | −2 | 0 | −10 |
-| structural / pension lever | −8 | +4 | +12 |
-| study-and-delay fork | −1 | 0 | −5 |
+| Source | Files | Each number records |
+|---|---|---|
+| **report** | `data/sources.enriched.json` | The existing data-of-record rules (CLAUDE.md schema). |
+| **public** | `data/public/<dataset>.json`, built by `data/pipeline/*.py`; raw downloads in `data/raw/public/` | `url`, `locator` (dataset id or PDF page), `downloaded` (YYYY-MM-DD), `raw_file`; the file names its `script`. |
+| **modeled** | `data/modeled.json` + `data/assumptions.json` | A model's `formula`, `inputs` (refs) and `assumptions` (ids). Each assumption is `basis: "sourced"` with a `url`, or `basis: "judgment"` with a `rationale`. |
 
-The `opposing_both` row is what makes #12 (drones) and #14 (vacancy-freeze) genuine no-win
-choices: **both branches cost −10 political_capital, and equity moves +8 or −8 by branch** —
-one camp is always angered. Neither branch is free; the player picks which constituency to
-disappoint.
+**Refs.** Inputs and rules point at numbers by ref: `report:<option-id>`,
+`report:structural_gap/<i>`, `public:<dataset>#<figure-id>`, `modeled:<model-id>`,
+`assumption:<assumption-id>`. Unresolvable refs fail validation.
 
-## 9. Endings
-Ending branches key off the **near-term** target per design decision. The engine computes
-`gap_closed_pct` and `one_time_share` — where `one_time_share = (one_time + ten_year_pv
-dollars) / (all banked dollars EXCEPT upfront_cost)` per §6 (upfront_cost is excluded from
-both numerator and denominator; it only adjusts gap_progress) — then evaluates:
-1. `gap_closed_pct < 50%` → **Crisis Deepens** (hard fail).
-2. `50% ≤ closed < 100%` → **Midnight Budget Standoff** (fail, near miss).
-3. `closed ≥ 100%`:
-   - `one_time_share ≥ 40%` → **Kicked the Can** (reveals the $680M structural gap returns
-     FY2027; CFFTF Final p.5). *Unreachable on durable/stretch by construction.*
-   - else `equity ≤ −40` → **The Austerity Mayor** (balanced on the backs of the vulnerable).
-   - else `political_capital ≤ 20` → **The Lame-Duck Reformer** (structurally sound but the
-     governing coalition collapsed).
-   - else `one_time_share ≤ 20%` AND `equity ≥ 0` AND `political_capital ≥ 40` AND
-     `long_term_health ≥ 30` → **The Structural Reformer** (gold).
-   - else → **The Pragmatist** (solid, middling).
+**Public file shape.**
+```
+{ dataset, script: "data/pipeline/<name>.py",
+  figures: [ { id, label, value, unit, source: { url, locator, downloaded, raw_file } } ] }
+```
+`unit` ∈ `USD | percent | share | count | any`. Written only through
+`data/pipeline/provenance.py` (deterministic output).
 
-## 10. Out of scope (v1)
-Chicagoan-mode persona view (v2); save/load; multi-year turns beyond the single-FY balance
-+ ending reveal. The engine stays persona-agnostic to keep v2 additive.
+**modeled.json shape.**
+```
+{ models: [ { id, label, formula, inputs: [ref], assumptions: [id], unit, value? } ],
+  interaction_rules: [ { id, kind: "exclusive" | "shrinks", members: [option ref], rationale } ] }
+```
+`value` is optional (a number or ten yearly numbers); most modeled numbers are computed
+by the engine at run time from their inputs.
 
-## 11. Verification (when the spec graduates to build)
-Test-first per `CLAUDE.md`: each decision / dial / fork gets a test asserting its banked
-`dollar_impact` + `basis` + meter deltas match `sources.enriched.json` (by option id), plus
-a full-playthrough test per target that reaches each ending branch. No number appears in a
-test that is not present in the data.
+**The registry and the scan.** `src/engine/provenance.ts` builds a registry of every
+number the three sources hold (report dollar fields, report figures stated in text,
+public figures, stored model values, assumptions). `findUnsourcedNumbers` extracts every
+money figure (`$680M`, `$35–250M`), percent (`70%`) and bare `N million/billion`
+from text, and flags any that matches no registered number within its displayed rounding
+(a share of 0.7 matches "70%"). The test scans every file in `src/` and `index.html`.
+A planted fake must fail; the same figure must pass once registered in any source.
 
-**Aggressive-path test:** plays the gap-maximizing path (all dials HIGH, all forks at the
-max-$ branch) on each target and asserts gap_closed_pct ≥ 100% — proves all three targets
-are closeable (§7d).
+**Tuning constants.** Game-design scaling factors (e.g. the Springfield partial-credit
+share) are assumptions with `basis: "judgment"` in `data/assumptions.json`, read by the
+engine by id. They score or scale a real figure; they assert no budget number.
 
-**Humane-path ceiling test (characterization / golden):** plays the equity-maximizing path
-on the **near-term** target and REPORTS where it lands. The path is deterministic: at each
-decision pick the choice with the highest `equity` delta; break ties by higher
-gap_progress, then by lower political_capital cost (dials → LOW; too_far → scaled-back fork;
-opposing_both → placate-vulnerable branch; alt/caution → study-and-delay unless the base
-choice has ≥0 equity).
-- The test **does NOT assert gap_closed_pct ≥ 100%.** It is acceptable and intended that
-  the humane path falls short — the design tragedy is deliberate.
-- On first green run, **pin** the observed `gap_closed_pct` and `ending` as a golden value;
-  subsequent runs assert the ceiling is unchanged. Re-pinning is an explicit, reviewed act
-  whenever §8 weights or §7 fork conventions are tuned — so a shift in the humane ceiling is
-  always a conscious design decision, never an accident.
-- Provisional expectation (data-derived, §7d): ≈ 35–45% closed → **Crisis Deepens**. If the
-  team later wants the tragedy to read as a near-miss (**Midnight Budget Standoff**, 50–99%)
-  rather than collapse, that is achieved by tuning §8 / yields and re-pinning — characterized
-  by this test, not left to chance.
+## 4. Architecture
 
-**`upfront_cost` guard test (stub):** construct a `LeverOutcome` with `basis: upfront_cost`
-(e.g. `rent-opsa-regional-training-facility`), bank it alongside ordinary outcomes, and
-assert `one_time_share` is well-defined (finite, in [0,1]) — i.e. the upfront_cost dollars
-appear in neither numerator nor denominator (§6/§9) while still reducing `gap_progress`.
-This is a correctness guard; no v1 playthrough hits it (§7a).
+- **Engine** (`src/engine/`): pure, DOM-free. Reads the three sources, takes a plan,
+  emits structured facts. No copy, no formatting.
+- **View** (`src/view/`): renders engine output. All on-screen text lives in
+  `copy.en.ts` and `copy.es.ts` (same keys, enforced by the `Copy` type and a test);
+  `i18n.ts` picks the language. The v1 game's `copy.ts` stays until v1 is removed.
+- **Routing** (`src/view/router.ts`): `#<page>?<params>` for the five pages. An empty or
+  unknown hash shows the v1 game until Phase 2. `?lang=es` previews Spanish.
+- **Sharing:** a plan is encoded in the link (`#gap?plan=...`); opening the link restores
+  the same plan. No server, no accounts.
 
-## 12. Build handoff
-The build session is a separate session and starts in **PLAN MODE**: Claude Code proposes
-the file layout, test framework, and engine/view structure for sign-off **before** writing
-any code. Only after plan approval does it run under `/goal` in auto mode, **test-first per
-`CLAUDE.md`** (red/green, real-playthrough tests, no invented numbers).
+## 5. Engine contract (built in Phase 2)
 
-**First build-session action:** update `CLAUDE.md`'s schema / extraction-contract block so it
-matches `data/sources.enriched.json` (the `verify.*` fields — `domain`, `leverage_tier`,
-`figure.basis`, `figure.annual_equivalent`, `figure.dollar_estimate`, `contested`,
-`overlap_groups`, `dissent_taxonomy`) and this finalized spec, so the engine contract and the
-project rules agree before the first test is written.
+**Plan.** An unordered set of choices: `{ option_ref, setting, switches? }`. Order never
+matters. `setting` picks how far the option is turned up. For a ranged report figure
+the settings are the report's own `low`, midpoint and `high` (no invented intermediate
+values); a point figure is on/off unless the source states a scaled version. Options
+with switches (e.g. the TIF options in §8) carry them in `switches`.
 
----
+**Horizon.** Ten fiscal years starting with FY2027. The "nothing changes" line is the
+city's 2027 budget forecast (public data, Phase 1/2).
 
-## 13. v1.1 — Urgency & State-friction addendum (post-build, 2026-06-29)
-Shipped on top of v1 §1–§12 (164/164 green, engine boundary §3 preserved). Diagnosis: the v1
-game lacked urgency — a monotonic-shrinking gap, no climax, consequences that only informed
-before a choice, invisible meter cliffs, and the biggest levers adoptable as if Springfield
-were a rubber stamp. The fix was three view items (V1–V3) plus one engine item (E1).
+**Yearly amounts.** Each chosen option yields ten yearly amounts:
+- one-time money counts in year 1 only;
+- recurring money counts every year;
+- growth options ramp up per the growth settings in `assumptions.json` (§9);
+- Springfield partial credit applies every year: only `state_confirmed_share` of a
+  Springfield-dependent option's yearly amount counts; the rest is reported as pending.
 
-**State classification (`data.stateStatus(id)` → `state | mixed | city`).** Curated id-sets
-(`STATE_DEPENDENT_IDS` = secure-CPS, LGDF, sales-tax-base, drones; `STATE_MIXED_IDS` = taxi,
-TIF-expiration, TIF-surplus, ADC), each cited to its `feasibility_note` phrase (e.g. LGDF
-"Feasibility Medium (state-dependent)"). Feeds both the view (V1) and the engine (E1). The
-three single largest recurring levers ($191.5M + $175.0M + $142.5M ≈ $509M of the $1.15B
-near-term gap) are all State-dependent per the data's own words.
+**What each option reports** (facts only; the view decides how to show them):
+`yearly[10]` for the city; `yearly_cps[10]` where an option moves CPS money;
+`timing` (one-time | recurring | growth); `who_pays`; `springfield` (state | mixed |
+city) and `pending_springfield[10]`; `confidence` (report | public | modeled); `refs`
+(provenance); `dissent` (direction + summary) when the reports record one.
 
-**E1 — State-dependent at-risk yield (engine; alters §6 counting + §8 meters).** A
-State-dependent lever banks its full data figure in `dollar_impact`, but only a tunable
-**`STATE_CONFIRMED_SHARE` (realize.ts, currently 0.7)** counts toward `gap_progress`; the
-remainder is `LeverOutcome.at_risk_dollars` ("pending Springfield"). §8 gains a tunable
-`state_dependent_extra` PC surcharge (meters.ts), applied when a State lever banks > 0. Both
-are §8-class tuning constants (CLAUDE.md carve-out), not new budget figures. **§7d closeability
-invariant still holds**: the aggressive path closes ≥100% on all three targets even at a full
-no-count, so the share is purely a friction/urgency knob (drop below ~0.65 and the humane
-golden flips to Crisis — see below).
+**No double counting.** `modeled.json` `interaction_rules` list options that exclude
+each other (`exclusive`) or reduce each other (`shrinks`). The engine enforces them;
+tests assert that every rule changes the combined total.
 
-**V1/V2/V3 (view only; golden untouched).** V1: `stateFriction` renders a "⚠ Needs Springfield"
-callout + a ledger "at risk, pending Springfield $X" tally (X = Σ engine `at_risk_dollars`).
-V2: `biteLine(outcome, target)` shows a post-choice consequence flash — the `no_count` bite
-finally voices the durable one-time-plug silent non-event. V3: `meterWarnings` surfaces the §9
-cliffs, reading the now-exported `ENDING_THRESHOLDS` from endings.ts (no new numbers).
+**Scoreboard.** For a plan: `baseline_gap[10]`, `plan_gap[10]`, closed in year 1,
+closed in year 10, and the one-time share of the fix. Two views:
+- `city` (default): the city's gap only;
+- `whole_bill`: city plus CPS. Whole-bill totals equal city plus CPS amounts (tested).
 
-**§11 golden — RE-PINNED.** The humane near-term ceiling moved **0.6198 → 0.5166** under E1
-(the humane path adopts CPS/LGDF at base + scales back sales — all State-dependent, so 30% is
-now at-risk; PC −10 → −22 from the surcharge). Ending category preserved: still **Midnight
-Budget Standoff** (near-miss, not collapse). Re-pin logged as an explicit reviewed act in
-`worklog.md` and `test/fixtures/humane-ceiling.json`. (Supersedes §7d/§11's pre-build
-"provisional ≈35–45%/Crisis" note, which was itself superseded by the 0.6198 build pin.)
+**Ready-made plans.** One-click plans, each matching its sourced total (tested): the
+mayor's 2027 budget; the City Council's 2026 counter-budget; EY's cost savings only;
+the Task Force's agreed-on items.
+
+## 6. Plain-language rules (all on-screen text)
+
+- Write for someone who has never read a budget; aim for sentences under 20 words.
+  **Tested:** no on-screen sentence over 30 words (`src/view/plainLanguage.ts`).
+- Turn big numbers into personal ones (per household, per dollar).
+- Use the glossary words (levy, tax rate, taxable value, TIF district, TIF surplus,
+  Corporate Fund, one-time money, recurring money, Springfield), defined as in the copy
+  files, with a tap-to-define popup on first use.
+- Never show "EAV" on screen; say "taxable value". **Tested.**
+- Name what an option does, with the report's title in smaller text underneath.
+- Stay neutral in Parts 1 and 2: present every side the same way, credit each option to
+  its source, never say which plan "wins".
+- No dollar or percent figure in copy: numbers come from the data at render time.
+
+## 7. Part 1 — Follow the dollar (Phase 1)
+
+1. A flow chart from revenue sources to spending, with a switch between the whole budget
+   and the Corporate Fund, then a "for each $1" bar showing cents to pensions and old
+   debt before any service is paid for.
+2. A property tax bill split by government (CPS, city, county, parks, water district,
+   City Colleges, others), then the city's slice by purpose.
+3. (Phase 4) Your own bill by address.
+
+Two small animations: more taxable value lowers everyone's rate (same levy, bigger
+base); TIF holds back growth (new value inside a TIF feeds the TIF fund).
+
+**Tests:** flow totals match the source documents; every number has a working source
+button; works on a phone; sentence-length test passes.
+
+## 8. Part 2 — Close the gap (Phase 2)
+
+Options are grouped by topic. Each card shows: year 1 and year 5 amounts and a tiny
+10-year chart; **one-time or every year** as the biggest label; who pays or loses a
+service; whether it needs Springfield; sources and confidence; any recorded dissent in
+one sentence. Options come from the 194 report options, the 2027 proposals (once their
+numbers are in `data/public/`), and the new options below.
+
+**TIF options.** Existing report options: `declare-maximum-tif-surplus` (one-time),
+`favor-natural-expiration-of-tifs` (yearly), and the report's "end TIFs early" option
+(no figure; legally and financially complicated). New, modeled options:
+
+- **`end-tifs-higher-income-areas` (Option A).** District definition switch: default =
+  median household income above the citywide median (ACS 5-year); downtown only; or an
+  income cutoff slider. The default district list is a saved test fixture. Effects: debts
+  and promised projects paid first (one-time cost shown); freed growth returns to every
+  government's taxable value; money starts with the next tax bill (Cook County bills a
+  year late: a sourced assumption). Money switch: **"lower everyone's tax rate"** (levies
+  unchanged, rates fall, $0 toward the city gap, typical-bill change shown) or **"city
+  keeps its share"** (city levy rises by its share of freed value so its rate is flat;
+  the only version that helps the city budget). The card says plainly that most freed
+  money goes to schools. Transit switch: the two CTA Red Line TIFs are excluded by
+  default; including them shows a warning about federally co-funded projects.
+- **`end-all-tifs` (Option B).** As A, for every district, plus a timing switch: **right
+  away** (pay off all TIF debts now; large year-1 cost) or **as they're paid off** (each
+  district closes when its debts are paid; no payoff cost; money phases in). States what
+  is lost: future surplus releases and promised projects.
+- A and B both shrink the surplus option: one `interaction_rules` group covers all three.
+
+**CPS connection.** CPS's share of freed TIF money never counts toward the city's gap
+automatically. A separate option, **"CPS pays the city back for school-staff pensions"**,
+labeled "depends on a deal with the school board, not guaranteed", takes its amount from
+public data and counts toward the city's gap only in years when CPS has extra money
+(more TIF surplus or an ended TIF), never above the deal amount. The whole-bill view shows
+CPS's full share either way.
+
+**Tests to write first** (REVAMP §10): default district list matches the fixture and
+changes with the definition; B frees at least as much value and money as A; the city
+never gets more than its tax rate × freed value; "lower everyone's tax rate" adds $0 to
+the city gap and lowers the typical bill; with "end all TIFs, right away" the surplus
+option yields about $0 from year 2; transit switch off by default, on adds the two Red
+Line TIFs and the warning; CPS money counts only with the pension deal on and never above
+the deal amount; whole-bill = city + CPS; every number on these cards traces to public
+or modeled data.
+
+**Done when:** every test above passes; ready-made plans match their sourced totals; a
+shared link reopens the exact same plan.
+
+## 9. Part 3 — Grow the base (Phase 3)
+
+A 3D map: property height = tax value per acre; highlight single-family-only land within
+a half mile of the L. Switches, each with a slider: coach houses everywhere; 8 stories
+near transit; four-flats everywhere; taller buildings on main streets; no minimum lot
+size. Homes added per switch come from Fix Chicago Housing's model if shared, otherwise a
+simple model with labeled assumptions.
+
+```
+new taxable value each year = new homes × taxable value of a typical new home
+city money = new taxable value × city tax rate
+           + sales and transfer taxes from new residents
+           − cost of city services for new residents
+```
+
+Growth ramps slowly (about nothing in years 1–2, most in years 3–10); the ramp lives in
+`assumptions.json`. New value inside a TIF goes to the TIF unless Option A or B ends that
+district. On screen: growth won't fix the 2027 gap; it's the only fix that keeps growing.
+
+**Done when:** the Math page lists every assumption; growth is about $0 in year 1 and
+only rises after (tested).
+
+## 10. Data pipeline
+
+`data/pipeline/` is a uv project (`uv run pytest`). Scripts write through
+`provenance.write_public`, keep raw downloads in `data/raw/public/`, are deterministic,
+and each has a test checking a total against the source document.
+
+| Output | Source | Phase |
+|---|---|---|
+| `budget_2027.json` | City 2027 budget forecast + proposal (PDFs added to `./reports/`) | 1 |
+| `tax_rates.json` | Cook County Clerk tax rate report | 1 |
+| `proposals_2027.json` | 2027 budget proposal, BGA, council documents | 2 |
+| `tif_districts.json` | Cook County Clerk TIF report; city TIF annual reports | 2 |
+| `cps_city_transfers.json` | CPS budget documents; city budget | 2 |
+| `tif_boundaries.geojson` | City of Chicago data portal | 2 |
+| `neighborhood_income.json` | Census ACS 5-year | 2 |
+| map tiles (values, lot sizes) | Cook County Assessor parcel universe | 3 |
+| zoning, L stations, wards | City data portal, CTA | 3 |
+| bill lookup | Cook County Treasurer + Assessor | 4 |
+
+## 11. Phases
+
+One pull request per phase (REVAMP §13).
+
+- **Phase 0 — set up (no visible change at the site root).** This spec; CLAUDE.md
+  updated; `assumptions.json`, `modeled.json`, `data/pipeline/` uv project; the
+  three-source number test; routing and the en/es copy files. **Done.**
+- **Phase 1 — Part 1.** Budget and tax-rate data; flow charts, "for each $1" bar, two
+  animations.
+- **Phase 2 — Part 2.** Plans, 10-year math, interaction rules, ready-made plans,
+  shareable links; proposals, TIF, CPS and income data; Options A/B, the pension-deal
+  option and the whole-bill view. `#gap` replaces the v1 game; v1 meters, endings and
+  the fixed decision sequence are deleted with their tests.
+- **Phase 3 — Part 3.** Property, zoning and station data; the map; switches, money math,
+  slow start, TIF link.
+- **Phase 4 — finishing.** Bill lookup; Spanish; ward lookup and the note to your
+  alderperson; data refresh after the final budget vote.
+
+## 12. Open questions
+
+REVAMP §14 lists the questions only Steffany can answer. Engine questions to settle
+test-first in Phase 2: how a `ten_year_pv` (asset sale) figure lands on the 10-year
+scoreboard (v1 spread it as figure ÷ 10 inside a one-year view).

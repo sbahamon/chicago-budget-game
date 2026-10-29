@@ -1,0 +1,14 @@
+{
+  "about": "Every assumption behind a number we calculate (REVAMP §4). Each one is labeled \"sourced\" (with a url) or \"judgment\" (with a rationale). The Math page lists all of them. Validated by test/data/provenance.test.ts.",
+  "assumptions": [
+    {
+      "id": "state_confirmed_share",
+      "label": "Share of a Springfield-dependent option's yearly money that counts toward the gap",
+      "value": 0.7,
+      "unit": "share",
+      "basis": "judgment",
+      "rationale": "Partial credit for options that need a state law (v1.1 SPEC §13, kept in v2). The rest is shown as pending Springfield. A game-design scaling factor, not a budget figure: it scales a real report figure and asserts no new number.",
+      "used_by": ["src/engine/realize.ts"]
+    }
+  ]
+}

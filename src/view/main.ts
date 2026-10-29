@@ -4,6 +4,9 @@
 // array that we replay through the (pure) engine to derive the live GameState.
 
 import "./style.css";
+import { parseRoute } from "./router";
+import { renderPage } from "./pages";
+import { copyFor } from "./i18n";
 import {
   createGame,
   applyChoice,
@@ -377,4 +380,20 @@ function renderEnding(): void {
   root.appendChild(renderLedger(game));
 }
 
-renderSplash();
+// v2 routing (REVAMP §5): #follow, #gap, #grow, #math and #sources render the v2
+// pages; an empty or unknown hash keeps the v1 game exactly as it was.
+const V1_TITLE = document.title;
+let onV2Page = false;
+function route(): void {
+  const r = parseRoute(location.hash);
+  if (r) {
+    onV2Page = true;
+    renderPage(root, r, copyFor(r.params.lang === "es" ? "es" : "en"));
+  } else if (onV2Page || root.childElementCount === 0) {
+    onV2Page = false;
+    document.title = V1_TITLE;
+    renderSplash();
+  }
+}
+window.addEventListener("hashchange", route);
+route();

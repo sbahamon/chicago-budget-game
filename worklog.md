@@ -120,3 +120,12 @@ v2 brief committed as REVAMP.md (it wins over CLAUDE.md on conflicts). Test-firs
   a manual download into data/raw/public/.
 - NEXT: Phase 1 (after Steffany answers REVAMP §14 Q5 — whether Strong Towns Chicago's City
   Finance Decoder already covers Part 1).
+
+## 2026-10-29 — PROGRESS: Phase 0 decisions from Steffany (PR #1)
+- Q5: Strong Towns Chicago's City Finance Decoder = inspiration only, numbers not trusted →
+  Part 1 is built from primary sources in data/public/; no Decoder figures (SPEC §7).
+- v1 game stays at the site root until Phase 2 (meters/endings deletion deferred, confirmed).
+- Spanish draft: Steffany will get it reviewed by a Spanish speaker.
+- ten_year_pv: spread figure ÷ 10 per year like v1, still labeled one-time. Recorded as
+  judgment assumption `asset_sale_spread_years` (10) in data/assumptions.json; SPEC §5, §12.
+- Still open for Phase 2: REVAMP §14 Q1, Q2, Q3, Q7. Phase 3: Q4. Launch: Q6.

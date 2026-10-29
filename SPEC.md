@@ -107,6 +107,11 @@ city's 2027 budget forecast (public data, Phase 1/2).
 - one-time money counts in year 1 only;
 - recurring money counts every year;
 - growth options ramp up per the growth settings in `assumptions.json` (§9);
+- a `ten_year_cumulative` figure (EY ten-year savings) counts figure ÷ 10 every year, as
+  recurring money;
+- a `ten_year_pv` figure (an asset sale) is spread the way v1 did: figure ÷ 10 per year
+  over `asset_sale_spread_years`, but still labeled **one-time money** (it counts toward
+  the one-time share, never as recurring);
 - Springfield partial credit applies every year: only `state_confirmed_share` of a
   Springfield-dependent option's yearly amount counts; the rest is reported as pending.
 
@@ -151,6 +156,10 @@ the Task Force's agreed-on items.
 2. A property tax bill split by government (CPS, city, county, parks, water district,
    City Colleges, others), then the city's slice by purpose.
 3. (Phase 4) Your own bill by address.
+
+**Strong Towns Chicago's City Finance Decoder** is inspiration only. We build Part 1
+from primary sources in `data/public/` and take no numbers from the Decoder (its figures
+aren't verified against the source documents).
 
 Two small animations: more taxable value lowers everyone's rate (same levy, bigger
 base); TIF holds back growth (new value inside a TIF feeds the TIF fund).
@@ -265,8 +274,17 @@ One pull request per phase (REVAMP §13).
 - **Phase 4 — finishing.** Bill lookup; Spanish; ward lookup and the note to your
   alderperson; data refresh after the final budget vote.
 
-## 12. Open questions
+## 12. Decisions and open questions
 
-REVAMP §14 lists the questions only Steffany can answer. Engine questions to settle
-test-first in Phase 2: how a `ten_year_pv` (asset sale) figure lands on the 10-year
-scoreboard (v1 spread it as figure ÷ 10 inside a one-year view).
+**Decided (Steffany, 2026-10-29):**
+- REVAMP §14 Q5: Strong Towns Chicago's Decoder is inspiration only; we build Part 1
+  ourselves and use none of its numbers (§7).
+- The v1 game stays at the site root until `#gap` replaces it in Phase 2; v1 meters and
+  endings are deleted then, not in Phase 0.
+- Spanish copy: Steffany will have a Spanish speaker review the draft before Phase 4.
+- `ten_year_pv` (asset sale) figures: spread figure ÷ 10 per year, labeled one-time (§5).
+
+**Still open (REVAMP §14):** Q1 (end a TIF early without Springfield?), Q2 (levy cap vs.
+keeping the city's share), Q3 (default "wealthier areas" definition), Q4 (Fix Chicago
+Housing model), Q6 (whose name is on the site), Q7 (pension-deal assumption this year).
+Q1–Q3 and Q7 block Phase 2; Q4 blocks Phase 3; Q6 is needed before launch.

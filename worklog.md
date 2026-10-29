@@ -81,3 +81,51 @@ limits unmistakable BEFORE play. View-only; engine + golden untouched (166/166 g
   3/194/45/18/4/7, body lines inject ("4 of them need Springfield … 7 possible endings"), and
   the CTA advances to difficulty select. NEXT (user): fill the three link href placeholders in
   copy.ts SPLASH.links.
+
+## 2026-10-29 — PROGRESS: v2 Phase 0 (REVAMP.md §13) — set up, no visible change at the root
+v2 brief committed as REVAMP.md (it wins over CLAUDE.md on conflicts). Test-first throughout.
+- DOCS: SPEC.md moved to docs/SPEC-v1.md (git mv); new SPEC.md (v2) written from REVAMP.
+  CLAUDE.md rewritten for v2: three number sources, plan-based logic, plain-language rules;
+  data-of-record schema + extraction contract kept (their SPEC refs now point to SPEC-v1).
+- NUMBERS (RED→GREEN, test/data/provenance.test.ts): src/engine/provenance.ts (pure:
+  extractFigures for $/ranges/percents/bare millions; registry over report + public +
+  modeled + assumptions; findUnsourcedNumbers matching within displayed rounding;
+  validators for each source's required provenance) + src/engine/sources.ts (loads the
+  real files; data/public/*.json picked up by import.meta.glob). The scan covers every file
+  in src/ + index.html: the existing v1 code had zero unsourced figures. A planted fake
+  ("$123.45 million", "37.3%") fails; the same figure passes once registered in a source.
+- DATA: data/assumptions.json (state_confirmed_share 0.7 moved here as a "judgment"
+  assumption; realize.ts now reads it by id, value unchanged so the humane golden is
+  untouched); data/modeled.json (empty models + interaction_rules, schema in "about");
+  data/public/ + data/raw/public/ (empty, .gitkeep).
+- PIPELINE: data/pipeline/ uv project (pyproject + uv.lock, pytest); provenance.py writes
+  the public envelope deterministically and rejects missing provenance (10 tests, RED first).
+- ROUTING + COPY (RED→GREEN): src/view/router.ts (parse/format `#page?params`, round-trips);
+  copy.en.ts + copy.es.ts (same keys via the Copy type; nav, page titles/ledes, the nine
+  glossary words) + i18n.ts; plainLanguage.ts (30-word sentence test, planted-long-sentence
+  test, no "EAV" on screen). pages.ts renders placeholder v2 shells; main.ts routes the five
+  hashes there and leaves the empty hash on the v1 game. `?lang=es` previews Spanish.
+  Spanish copy is a DRAFT pending native review (ships Phase 4).
+- METERS/ENDINGS: deliberately NOT deleted yet — the v1 game still serves the root and
+  Phase 0 is "no visible changes". They go (with their tests) in Phase 2 when #gap replaces
+  the v1 game. Old tests all still pass.
+- CI: added .github/workflows/ci.yml (npm test + build; uv run pytest) on PRs and main.
+  Added @types/node (dev) for the file scan.
+- VERIFY: vitest 215/215 (was 166; +49), tsc clean, `npm run build` clean, pipeline 10/10.
+  Playwright smoke at phone width: root still shows the v1 splash; each v2 hash renders its
+  shell; nav + "back to the game" work; no console errors.
+- NETWORK (for Phase 1+): reachable — data.cityofchicago.org, datacatalog.cookcountyil.gov,
+  api.census.gov, cps.edu, pypi. Blocked (403) — cookcountyclerkil.gov, BGA
+  (chicagobudget.bettergov.org), news.wttw.com. Clerk tax-rate/TIF reports will likely need
+  a manual download into data/raw/public/.
+- NEXT: Phase 1 (after Steffany answers REVAMP §14 Q5 — whether Strong Towns Chicago's City
+  Finance Decoder already covers Part 1).
+
+## 2026-10-29 — PROGRESS: Phase 0 decisions from Steffany (PR #1)
+- Q5: Strong Towns Chicago's City Finance Decoder = inspiration only, numbers not trusted →
+  Part 1 is built from primary sources in data/public/; no Decoder figures (SPEC §7).
+- v1 game stays at the site root until Phase 2 (meters/endings deletion deferred, confirmed).
+- Spanish draft: Steffany will get it reviewed by a Spanish speaker.
+- ten_year_pv: spread figure ÷ 10 per year like v1, still labeled one-time. Recorded as
+  judgment assumption `asset_sale_spread_years` (10) in data/assumptions.json; SPEC §5, §12.
+- Still open for Phase 2: REVAMP §14 Q1, Q2, Q3, Q7. Phase 3: Q4. Launch: Q6.

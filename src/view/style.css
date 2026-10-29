@@ -1029,3 +1029,33 @@ h3 {
     transition: none !important;
   }
 }
+
+/* --- v2 page shells (REVAMP §5) --- */
+.sitenav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 10px 0 18px;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.sitenav__link {
+  color: var(--chi-blue-ink);
+  text-decoration: none;
+  padding: 2px 0;
+  border-bottom: 2px solid transparent;
+}
+.sitenav__link[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--star-red);
+}
+.page__soon {
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+.page__back {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--chi-blue-ink);
+}

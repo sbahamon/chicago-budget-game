@@ -1,0 +1,16 @@
+[project]
+name = "chicago-budget-pipeline"
+version = "0.1.0"
+description = "Scripts that turn public city, county and Census downloads into data/public/*.json (REVAMP §4, §12)."
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

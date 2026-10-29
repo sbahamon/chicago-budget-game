@@ -1,0 +1,27 @@
+{
+  "about": "Every assumption behind a number we calculate (REVAMP §4). Each one is labeled \"sourced\" (with a url) or \"judgment\" (with a rationale). The Math page lists all of them. Validated by test/data/provenance.test.ts.",
+  "assumptions": [
+    {
+      "id": "state_confirmed_share",
+      "label": "Share of a Springfield-dependent option's yearly money that counts toward the gap",
+      "value": 0.7,
+      "unit": "share",
+      "basis": "judgment",
+      "rationale": "Partial credit for options that need a state law (v1.1 SPEC §13, kept in v2). The rest is shown as pending Springfield. A game-design scaling factor, not a budget figure: it scales a real report figure and asserts no new number.",
+      "used_by": [
+        "src/engine/realize.ts"
+      ]
+    },
+    {
+      "id": "asset_sale_spread_years",
+      "label": "Years over which a ten-year present-value figure (an asset sale) is spread on the scoreboard",
+      "value": 10,
+      "unit": "count",
+      "basis": "judgment",
+      "rationale": "Steffany's decision (2026-10-29): spread ten_year_pv figures the way v1 did, figure ÷ 10 per year, still labeled one-time money (an asset sale), not recurring. Matches the data's own annual_equivalent_rule (ten_year_* ÷ 10). Scales a real report figure; asserts no new number.",
+      "used_by": [
+        "src/engine (Phase 2 ten-year scoreboard)"
+      ]
+    }
+  ]
+}

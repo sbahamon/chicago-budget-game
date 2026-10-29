@@ -1,0 +1,5 @@
+{
+  "about": "Numbers we calculate ourselves, and the rules that stop options from counting the same money twice (REVAMP §4, §6). Each model records its formula, the numbers that go in (refs: report:<option-id>, report:structural_gap/<i>, public:<dataset>#<figure-id>, modeled:<id>, assumption:<id>) and the assumptions it uses. Each interaction rule lists the options it covers: kind \"exclusive\" means they can't be picked together; \"shrinks\" means picking one reduces the others. Validated by test/data/provenance.test.ts.",
+  "models": [],
+  "interaction_rules": []
+}
